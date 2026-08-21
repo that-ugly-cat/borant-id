@@ -58,25 +58,28 @@ docker exec -it borantid python seed.py --email TUA@MAIL --name Spit --apps
 Nel `Caddyfile`, **due** snippet riutilizzabili e il blocco del gate:
 
 ```
-# In OGNI blocco di *.borant.eu, gated o pubblico: nessuna app deve mai vedere
-# il cookie di sessione del gate.
+# Da importare nei blocchi PUBBLICI di *.borant.eu: nessuna app deve mai
+# vedere il cookie di sessione del gate.
 (nocookie) {
     request_header Cookie "borant_session=[^;]*;?\s*" ""
 }
 
+# route{} impone l'ordine di esecuzione, ed è tutto. Vedi la nota qui sotto.
 (borantid) {
-    import nocookie
-    # invariante numero uno: mai fidarsi di header X-Borant-* dal client
-    request_header -X-Borant-Sub
-    request_header -X-Borant-Email
-    request_header -X-Borant-Name
-    request_header -X-Borant-Level
-    request_header -X-Borant-Hint
-    request_header -X-Borant-Expires
+    route {
+        request_header -X-Borant-Sub
+        request_header -X-Borant-Email
+        request_header -X-Borant-Name
+        request_header -X-Borant-Level
+        request_header -X-Borant-Hint
+        request_header -X-Borant-Expires
 
-    forward_auth localhost:8019 {
-        uri /verify
-        copy_headers X-Borant-Sub X-Borant-Email X-Borant-Name X-Borant-Level X-Borant-Hint X-Borant-Expires
+        forward_auth localhost:8019 {
+            uri /verify
+            copy_headers X-Borant-Sub X-Borant-Email X-Borant-Name X-Borant-Level X-Borant-Hint X-Borant-Expires
+        }
+
+        import nocookie
     }
 }
 
@@ -86,6 +89,23 @@ id.borant.eu {
     reverse_proxy localhost:8019
 }
 ```
+
+> **`route{}` non è cosmetica, e senza di essa la configurazione è rotta in due
+> modi opposti.** Verificato sul campo il 20/8/2026, non dedotto.
+>
+> Fuori da un `route{}` Caddy riordina le direttive a modo suo, e le
+> cancellazioni `request_header -X-Borant-*` finiscono **dopo** `copy_headers`:
+> il risultato è che spariscono anche gli header veri, e l'app riceve
+> un'identità vuota. Sintomo: tutto sembra funzionare, ma a valle non arriva
+> nessuno.
+>
+> Il cookie ha il vincolo **opposto**: `forward_auth` inoltra gli header della
+> richiesta originale, quindi se `nocookie` gira *prima*, il gate non vede mai
+> la sessione e nessuno entra più. Deve girare **dopo**.
+>
+> Tre fasi in un ordine solo: cancella → autentica → togli il cookie. È
+> esattamente quello che `route{}` garantisce e che l'ordinamento automatico
+> non garantisce.
 
 ```bash
 sudo systemctl reload caddy
