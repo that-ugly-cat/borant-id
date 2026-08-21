@@ -55,6 +55,28 @@ INVITE_DAYS = 14
 RESET_HOURS = 1
 
 
+def _asset_version() -> str:
+    """Impronta di CSS e logo, appesa come `?v=` ai loro URL.
+
+    Serve perché la zona è dietro Cloudflare, che mette in cache gli statici per
+    quattro ore: senza, un deploy corregge il foglio di stile all'origine e i
+    visitatori continuano a vedere quello vecchio finché la cache non scade.
+    Cambiando l'URL cambia la chiave di cache, quindi ogni deploy si porta
+    dietro i propri asset senza purghe manuali dalla dashboard.
+    """
+    h = hashlib.sha256()
+    for name in ("style.css", "borant-logo.png"):
+        try:
+            st = os.stat(os.path.join(BASE, "static", name))
+            h.update(f"{name}:{st.st_mtime_ns}:{st.st_size}".encode())
+        except OSError:
+            h.update(name.encode())
+    return h.hexdigest()[:10]
+
+
+ASSET_V = _asset_version()
+
+
 # ── Small helpers ─────────────────────────────────────────────────────────────
 
 def client_ip(request: Request) -> str:
@@ -166,6 +188,7 @@ def tr(request: Request) -> dict[str, str]:
 
 def render(request: Request, name: str, ctx: dict) -> HTMLResponse:
     ctx.setdefault("site_name", "Borant ID")
+    ctx.setdefault("asset_v", ASSET_V)
     return templates.TemplateResponse(request, name, ctx)
 
 

@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ site_name }}{% endblock %}</title>
-  <link rel="icon" href="/static/borant-logo.png">
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="/static/borant-logo.png?v={{ asset_v }}">
+  <link rel="stylesheet" href="/static/style.css?v={{ asset_v }}">
 </head>
 <body>
 <header>
   <div class="nav-inner">
     <a class="nav-logo" href="/">
-      <img src="/static/borant-logo.png" alt="Borant">
+      <img src="/static/borant-logo.png?v={{ asset_v }}" alt="Borant">
       <span class="nav-logo-text">
         {{ site_name }}
         <span class="nav-logo-sub">{{ t.tagline }}</span>
