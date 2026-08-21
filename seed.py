@@ -34,8 +34,12 @@ PERIMETER = [
      "free, full, admin"),
     ("lssr",        "LSSR",        "lssr.borant.eu",        [],
      ""),                        # booleano (owner + is_admin), non ha ruoli
-    ("papertrail",  "PaperTrail",  "papertrail.borant.eu",  ["/admin"],
+    ("papertrail",  "PaperTrail",  "papertrail.borant.eu",  [],
      ""),                        # il ruolo è PER WORKSPACE: «read» su quale?
+                                 # Niente `2F` su /admin (deciso il 21/8/2026):
+                                 # quel pannello crea utenti e workspace, non
+                                 # apre dati che il resto dell'app non apra già.
+                                 # Se torna qui, un riseeding la rimette.
     ("autocode",    "AutoCode",    "autocode.borant.eu",    ["/admin", "/api/admin"],
      ""),                        # booleano is_admin. Attenzione all'omonimo:
                                  # in AutoCode «roles» sono i ruoli dei
