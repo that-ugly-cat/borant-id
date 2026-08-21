@@ -20,32 +20,55 @@ import sys
 import auth
 from models import App, Policy, SessionLocal, TWO_FACTOR, User, init_db, utcnow
 
-# (slug, name, host, two-factor prefixes) — SPEC.md §11
+# (slug, name, host, prefissi two-factor, ruoli) — SPEC.md §11 e §17
+#
+# I ruoli riempiono soltanto il menu del campo «ruolo suggerito» in /admin. Il
+# gate non li interpreta: il vocabolario di dominio è dell'app (SPEC.md §2).
+#
+# **Vuoto è una risposta.** Le tre app di categoria B lasciate vuote hanno un
+# motivo diverso ciascuna, ed è scritto accanto. Le app di categoria A non
+# leggono nessun header, quindi per loro l'hint non esiste proprio.
 PERIMETER = [
-    ("roompulse",   "RoomPulse",   "roompulse.borant.eu",   []),
-    ("lssr",        "LSSR",        "lssr.borant.eu",        []),
-    ("papertrail",  "PaperTrail",  "papertrail.borant.eu",  ["/admin"]),
-    ("autocode",    "AutoCode",    "autocode.borant.eu",    ["/admin", "/api/admin"]),
-    ("argumap",     "ArguMap",     "argumap.borant.eu",     ["/admin"]),
-    ("survey",      "Survey",      "survey.borant.eu",      ["/admin"]),
-    ("contrarian",  "Contrarian",  "contrarian.borant.eu",  ["/admin"]),
-    ("grantradar",  "Grant Radar", "grantradar.borant.eu",  []),
-    ("onopedia",    "Onopedia",    "wiki.borant.eu",        []),
-    ("topictracker", "TopicTracker", "topictracker.borant.eu", []),
-    ("paper2md",    "paper2md",    "paper2md.borant.eu",    []),
+    # categoria B — provisioning
+    ("roompulse",   "RoomPulse",   "roompulse.borant.eu",   [],
+     "free, full, admin"),
+    ("lssr",        "LSSR",        "lssr.borant.eu",        [],
+     ""),                        # booleano (owner + is_admin), non ha ruoli
+    ("papertrail",  "PaperTrail",  "papertrail.borant.eu",  ["/admin"],
+     ""),                        # il ruolo è PER WORKSPACE: «read» su quale?
+    ("autocode",    "AutoCode",    "autocode.borant.eu",    ["/admin", "/api/admin"],
+     ""),                        # booleano is_admin. Attenzione all'omonimo:
+                                 # in AutoCode «roles» sono i ruoli dei
+                                 # parlanti nelle trascrizioni, non i permessi
+    ("argumap",     "ArguMap",     "argumap.borant.eu",     ["/admin"],
+     ""),                        # RBAC vero, tabelle roles/permissions: da
+                                 # riempire alla migrazione, sapendo che
+                                 # invecchia quando si crea un ruolo nuovo
+
+    # categoria A — solo la porta, nessun provisioning, nessun hint
+    ("survey",      "Survey",      "survey.borant.eu",      ["/admin"], ""),
+    ("contrarian",  "Contrarian",  "contrarian.borant.eu",  ["/admin"], ""),
+    ("grantradar",  "Grant Radar", "grantradar.borant.eu",  [], ""),
+    ("onopedia",    "Onopedia",    "wiki.borant.eu",        [], ""),
+    ("topictracker", "TopicTracker", "topictracker.borant.eu", [], ""),
+    ("paper2md",    "paper2md",    "paper2md.borant.eu",    [], ""),
 ]
 
 
 def seed_apps(db) -> int:
     made = 0
-    for slug, name, host, two_factor in PERIMETER:
+    for slug, name, host, two_factor, roles in PERIMETER:
         a = db.query(App).filter(App.host == host).first()
         if a is None:
-            a = App(slug=slug, name=name, host=host)
+            a = App(slug=slug, name=name, host=host, roles=roles)
             db.add(a)
             db.commit()
             db.add(Policy(app_id=a.id, path_prefix="/", note="default"))
             made += 1
+        elif roles and not a.roles:
+            # riallineo solo se qui non è mai stato scritto niente: quello che
+            # è stato messo a mano da /admin vince sempre su questa lista
+            a.roles = roles
         for prefix in two_factor:
             exists = (db.query(Policy)
                         .filter(Policy.app_id == a.id,

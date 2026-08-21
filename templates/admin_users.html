@@ -40,10 +40,21 @@
       <table class="table">
         <tr><th></th><th>App</th><th>Ruolo suggerito (X-Borant-Hint)</th></tr>
         {% for a in apps %}
+          {% set rl = a.role_list() %}
           <tr>
             <td><input type="checkbox" name="app_{{ a.id }}" value="1"></td>
             <td>{{ a.name }} <span class="muted mono">{{ a.host }}</span></td>
-            <td><input type="text" name="hint_{{ a.id }}" placeholder="es. reader"></td>
+            <td>
+              {% if rl %}
+                <input type="text" name="hint_{{ a.id }}" list="inv-roles-{{ a.id }}"
+                       placeholder="{{ rl | join(' · ') }}">
+                <datalist id="inv-roles-{{ a.id }}">
+                  {% for r in rl %}<option value="{{ r }}"></option>{% endfor %}
+                </datalist>
+              {% else %}
+                <span class="muted small">— questa app non ha ruoli</span>
+              {% endif %}
+            </td>
           </tr>
         {% endfor %}
       </table>
@@ -113,13 +124,29 @@
               {% endif %}
             </td>
             <td>
+              {% set rl = a.role_list() %}
               <form method="post" action="/admin/users/{{ u.id }}/grant" class="row">
                 <input type="hidden" name="csrf" value="{{ csrf }}">
                 <input type="hidden" name="app_id" value="{{ a.id }}">
-                <input type="text" name="level_hint" placeholder="ruolo suggerito"
-                       value="{{ g.level_hint if g else '' }}">
+                {% if rl %}
+                  <input type="text" name="level_hint" list="roles-{{ a.id }}"
+                         placeholder="{{ rl | join(' · ') }}"
+                         value="{{ g.level_hint if g else '' }}">
+                  <datalist id="roles-{{ a.id }}">
+                    {% for r in rl %}<option value="{{ r }}"></option>{% endfor %}
+                  </datalist>
+                  {% if g and g.level_hint and g.level_hint not in rl %}
+                    <span class="fixed">
+                      <span class="badge badge-warn" title="Non è fra i ruoli dichiarati per questa app">
+                        fuori lista
+                      </span>
+                    </span>
+                  {% endif %}
+                {% else %}
+                  <span class="muted small">nessun ruolo dichiarato</span>
+                {% endif %}
                 <span class="fixed">
-                  <button class="small {{ '' if g else 'ghost' }}" type="submit">
+                  <button class="btn btn-small" type="submit">
                     {{ 'Aggiorna' if g else 'Concedi' }}
                   </button>
                 </span>

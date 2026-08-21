@@ -242,7 +242,7 @@ def apps(request: Request, borant_session: str | None = Cookie(default=None),
 def app_create(request: Request, slug: str = Form(""), name: str = Form(""),
                host: str = Form(""), description: str = Form(""),
                default_access: str = Form("grant_required"),
-               csrf: str = Form(""),
+               roles: str = Form(""), csrf: str = Form(""),
                borant_session: str | None = Cookie(default=None),
                db: DbSession = Depends(get_db)):
     sess, me, redirect = _guard(db, borant_session)
@@ -254,6 +254,7 @@ def app_create(request: Request, slug: str = Form(""), name: str = Form(""),
     if slug and host and not db.query(App).filter(App.host == host).first():
         a = App(slug=slug, name=name.strip() or slug, host=host,
                 description=description.strip(),
+                roles=", ".join(r.strip() for r in roles.split(",") if r.strip()),
                 default_access=(default_access if default_access in
                                 ("grant_required", "any_authenticated")
                                 else "grant_required"))
@@ -282,6 +283,31 @@ def app_toggle(aid: int, request: Request, csrf: str = Form(""),
         audit(db, "app.toggled", user=me, ip=_ip(request), slug=a.slug,
               active=a.active)
     return RedirectResponse("/admin/apps", status_code=303)
+
+
+@router.post("/apps/{aid}/roles")
+def app_roles(aid: int, request: Request, roles: str = Form(""),
+              csrf: str = Form(""),
+              borant_session: str | None = Cookie(default=None),
+              db: DbSession = Depends(get_db)):
+    """Il vocabolario che questa app usa per X-Borant-Hint.
+
+    Serve solo a riempire il menu nella form dei grant: il gate non lo
+    interpreta e non lo impone. Lasciarlo **vuoto è una risposta**, non una
+    dimenticanza — per le app che hanno un booleano invece dei ruoli il campo
+    sparisce del tutto."""
+    sess, me, redirect = _guard(db, borant_session)
+    if redirect:
+        return redirect
+    a = db.get(App, aid)
+    if a is not None and _csrf_ok(sess, csrf):
+        cleaned = ", ".join(r.strip() for r in roles.split(",") if r.strip())
+        a.roles = cleaned
+        db.commit()
+        auth.invalidate_registry()
+        audit(db, "app.roles_set", user=me, ip=_ip(request), slug=a.slug,
+              roles=cleaned)
+    return RedirectResponse(f"/admin/apps#a{aid}", status_code=303)
 
 
 @router.post("/apps/{aid}/access")

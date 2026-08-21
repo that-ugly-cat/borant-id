@@ -27,6 +27,8 @@
     </div>
     <label for="description">Descrizione</label>
     <input id="description" name="description">
+    <label for="roles">Ruoli usati da questa app (separati da virgola, facoltativo)</label>
+    <input id="roles" name="roles" placeholder="es. free, full, admin">
     <div class="actions"><button class="btn-primary" type="submit">Registra</button></div>
   </form>
 </div>
@@ -58,6 +60,25 @@
         </form>
       </div>
     </div>
+
+    <h3>Ruoli</h3>
+    <form method="post" action="/admin/apps/{{ a.id }}/roles" class="row">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <div>
+        <input name="roles" value="{{ a.roles }}"
+               placeholder="vuoto = questa app non ha ruoli, e il campo sparisce dalle form">
+      </div>
+      <div class="fixed"><button class="btn btn-small" type="submit">Salva ruoli</button></div>
+    </form>
+    <p class="note">
+      Riempie il menu del campo «ruolo suggerito» nella form degli inviti e dei
+      grant, e basta: il gate non li interpreta e non li impone, perché il
+      vocabolario di dominio è dell'app. <strong>Vuoto è una risposta</strong>,
+      non una dimenticanza — per le app che hanno un booleano invece dei ruoli
+      il campo non compare affatto, così non c'è niente da ricordare e niente
+      da sbagliare. Si riempie al momento di gatare l'app, leggendo il
+      vocabolario vero dal suo codice.
+    </p>
 
     <h3>Policy per path</h3>
     <div class="table-wrap">

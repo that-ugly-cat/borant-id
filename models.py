@@ -178,7 +178,21 @@ class App(Base):
     # someone who uses everything. Admins bypass grants regardless.
     default_access = Column(String, nullable=False, default="grant_required")
 
+    # Comma-separated vocabulary this app uses for `X-Borant-Hint`, purely so
+    # the admin form can offer it instead of asking someone to remember it.
+    # The gate never interprets these strings and never validates against them:
+    # owning a domain vocabulary is exactly what SPEC.md §2 forbids.
+    #
+    # **Empty is a real answer, not a gap.** AutoCode and LSSR have a boolean
+    # instead of roles, and PaperTrail's role is per-workspace — "read" on
+    # which one? For those three the field is meaningless, so an empty list
+    # makes it disappear from the form rather than inviting a typo.
+    roles = Column(Text, nullable=False, default="")
+
     created_at = Column(DateTime, nullable=False, default=utcnow)
+
+    def role_list(self) -> list[str]:
+        return [r.strip() for r in (self.roles or "").split(",") if r.strip()]
 
     policies = relationship("Policy", back_populates="app",
                             cascade="all, delete-orphan")
@@ -291,6 +305,24 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 def init_db() -> None:
     Base.metadata.create_all(engine)
+    _migrate()
+
+
+# Colonne aggiunte dopo il primo deploy. SQLite non ha un ALTER idempotente, e
+# `create_all` non tocca le tabelle che esistono già: senza questo, un database
+# nato prima della colonna resta indietro in silenzio.
+_MIGRATIONS = [
+    "ALTER TABLE apps ADD COLUMN roles TEXT NOT NULL DEFAULT ''",
+]
+
+
+def _migrate() -> None:
+    with engine.begin() as conn:
+        for statement in _MIGRATIONS:
+            try:
+                conn.exec_driver_sql(statement)
+            except Exception:
+                pass          # colonna già presente: è il caso normale
 
 
 def get_db():
