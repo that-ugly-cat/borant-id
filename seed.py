@@ -50,7 +50,11 @@ PERIMETER = [
                                  # invecchia quando si crea un ruolo nuovo
 
     # categoria A — solo la porta, nessun provisioning, nessun hint
-    ("survey",      "Survey",      "survey.borant.eu",      ["/admin"], ""),
+    # `/` e non `/admin`: Survey impone il TOTP da sé su qualunque pagina da
+    # autenticato, quindi una policy sul solo pannello avrebbe reso il passaggio
+    # al gate un indebolimento. Gli export sotto /admin/surveys/{slug}/export.*
+    # sono i dati dei rispondenti, e lo è anche il cruscotto che li elenca.
+    ("survey",      "Survey",      "survey.borant.eu",      ["/"], ""),
     ("contrarian",  "Contrarian",  "contrarian.borant.eu",  [], ""),
                                  # Niente `2F` (deciso il 21/8/2026). Le
                                  # credenziali istituzionali si impostano da
