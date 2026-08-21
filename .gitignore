@@ -16,3 +16,6 @@ __pycache__/
 
 # documento interno di progettazione: resta locale, come per PaperTrail e LSSR
 SPEC.md
+
+# password del primo admin, scritta da seed.py sul server
+primo-admin.txt
