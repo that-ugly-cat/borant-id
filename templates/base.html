@@ -1,42 +1,38 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="{{ lang }}">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}{{ site_name }}{% endblock %}</title>
   <link rel="icon" href="/static/borant-logo.png?v={{ asset_v }}">
   <link rel="stylesheet" href="/static/style.css?v={{ asset_v }}">
+  {% block head %}{% endblock %}
 </head>
 <body>
-<header>
-  <div class="nav-inner">
-    <a class="nav-logo" href="/">
-      <img src="/static/borant-logo.png?v={{ asset_v }}" alt="Borant">
-      <span class="nav-logo-text">
-        {{ site_name }}
-        <span class="nav-logo-sub">{{ t.tagline }}</span>
-      </span>
-    </a>
-    {% if user %}
-      <nav>
-        <a href="/profile">{{ t.nav_profile }}</a>
-        {% if user.is_admin %}
-          <a href="/admin/users">{{ t.nav_users }}</a>
-          <a href="/admin/apps">{{ t.nav_apps }}</a>
-          <a href="/admin/sessions">{{ t.nav_sessions }}</a>
-          <a href="/admin/audit">{{ t.nav_log }}</a>
-          <a href="/admin/config">{{ t.nav_config }}</a>
-        {% endif %}
-        <form method="post" action="/logout" class="inline">
-          <button class="link" type="submit">{{ t.nav_logout }}</button>
-        </form>
-      </nav>
-    {% endif %}
-  </div>
+<header class="topbar">
+  <a class="brand" href="/">
+    <img class="brand-logo" src="/static/borant-logo.png?v={{ asset_v }}" alt="Borant">
+    <span>{{ site_name }}<span class="brand-sub">{{ t.tagline }}</span></span>
+  </a>
+  {% if user %}
+    <nav>
+      <a href="/profile">{{ t.nav_profile }}</a>
+      {% if user.is_admin %}
+        <a href="/admin/users">{{ t.nav_users }}</a>
+        <a href="/admin/apps">{{ t.nav_apps }}</a>
+        <a href="/admin/sessions">{{ t.nav_sessions }}</a>
+        <a href="/admin/audit">{{ t.nav_log }}</a>
+        <a href="/admin/config">{{ t.nav_config }}</a>
+      {% endif %}
+      <form method="post" action="/logout" class="inline">
+        <button class="btn-link" type="submit">{{ t.nav_logout }}</button>
+      </form>
+    </nav>
+  {% endif %}
 </header>
 
-<main>
-  {% block body %}{% endblock %}
+<main class="container{% block container_class %}{% endblock %}">
+{% block body %}{% endblock %}
 </main>
 
 <footer>
@@ -50,5 +46,6 @@
     </span>
   </div>
 </footer>
+{% block scripts %}{% endblock %}
 </body>
 </html>

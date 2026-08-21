@@ -64,6 +64,23 @@ workspace di PaperTrail, le membership di LSSR, i coder di AutoCode restano dove
 sono: Borant ID dice *chi sei*, l'app decide *cosa puoi*) · autorizzazione
 per-risorsa · gestione delle API key MCP.
 
+## Faccia e lingue
+
+**Palette scura dei tool**, la stessa di LSSR, AutoCode e ArguMap: fondo
+`#0f1117`, card `#1a1d27`, primario `#0a3c8a`, accento `#63b3ed`, font di
+sistema a 15px, `.topbar` / `.container` / `.card` / `.btn` / `.badge` /
+`.flash` come nomi di classe.
+
+Non è l'identità corporate di `borant.eu` (navy `#0D1B3E` e arancio `#E87722`
+su fondo bianco): quella è la faccia dell'azienda verso chi arriva da fuori,
+questa è la faccia degli attrezzi verso chi ci lavora dentro. Del sito
+corporate resta soltanto il **logo**, nella topbar.
+
+**Quattro lingue** — it, en, de, fr — in `locales.py`, sul pattern di RoomPulse
+e ArguMap. Si sceglie da `/lang/{code}`, si ricorda in un cookie di un anno, e
+al primo arrivo si indovina da `Accept-Language` rispettando i q-value. I
+pannelli `/admin` restano in italiano: li usa una persona sola.
+
 ## Sviluppo
 
 ```bash

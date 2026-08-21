@@ -5,7 +5,7 @@
   <h1>{{ t.invite_title }}</h1>
   <p class="sub">{{ t.invite_for }} <strong>{{ tok.email }}</strong>.</p>
 
-  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  {% if error %}<div class="flash flash-error">{{ error }}</div>{% endif %}
 
   <div class="card">
     <form method="post" action="/invite/{{ raw }}">
@@ -16,7 +16,7 @@
       <label for="password2">{{ t.invite_pw2 }}</label>
       <input id="password2" name="password2" type="password" autocomplete="new-password" required>
       <div class="actions">
-        <button type="submit">{{ t.invite_activate }}</button>
+        <button class="btn-primary" type="submit">{{ t.invite_activate }}</button>
       </div>
     </form>
   </div>

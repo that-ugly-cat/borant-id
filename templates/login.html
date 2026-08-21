@@ -6,12 +6,12 @@
   <p class="sub">{{ t.login_sub }}</p>
 
   {% if cookie_trouble %}
-    <div class="error">
+    <div class="flash flash-error">
       <strong>{{ t.cookie_trouble_title }}</strong> {{ t.cookie_trouble_body }}
     </div>
   {% endif %}
 
-  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  {% if error %}<div class="flash flash-error">{{ error }}</div>{% endif %}
 
   <div class="card">
     <form method="post" action="/login">
@@ -21,15 +21,15 @@
       <label for="password">{{ t.password }}</label>
       <input id="password" name="password" type="password" autocomplete="current-password" required>
       <div class="actions">
-        <button type="submit">{{ t.login_enter }}</button>
+        <button class="btn-primary" type="submit">{{ t.login_enter }}</button>
         <a class="muted" href="/reset">{{ t.login_forgot }}</a>
       </div>
     </form>
   </div>
 
   {% if orcid_ready %}
-    <div class="card accent">
-      <a class="btn ghost" href="/login/orcid{% if rd %}?rd={{ rd|urlencode }}{% endif %}">
+    <div class="card">
+      <a class="btn" href="/login/orcid{% if rd %}?rd={{ rd|urlencode }}{% endif %}">
         {{ t.login_orcid }}
       </a>
       <p class="note" style="margin-bottom:0">{{ t.login_orcid_note }}</p>

@@ -5,7 +5,7 @@
   <h1>{{ t.reset_new_title }}</h1>
   <p class="sub">{{ t.reset_new_sub }}</p>
 
-  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  {% if error %}<div class="flash flash-error">{{ error }}</div>{% endif %}
 
   <div class="card">
     <form method="post" action="/reset/{{ raw }}">
@@ -13,7 +13,7 @@
       <input id="password" name="password" type="password" autocomplete="new-password" required autofocus>
       <label for="password2">{{ t.invite_pw2 }}</label>
       <input id="password2" name="password2" type="password" autocomplete="new-password" required>
-      <div class="actions"><button type="submit">{{ t.save }}</button></div>
+      <div class="actions"><button class="btn-primary" type="submit">{{ t.save }}</button></div>
     </form>
   </div>
 </div>

@@ -6,7 +6,7 @@
 {% if apps %}
   <div class="card">
     <div class="table-wrap">
-      <table>
+      <table class="table">
         <tr><th>{{ t.home_col_app }}</th><th>{{ t.home_col_address }}</th><th></th></tr>
         {% for a in apps %}
           <tr>
@@ -14,7 +14,7 @@
               {% if a.description %}<br><span class="muted">{{ a.description }}</span>{% endif %}
             </td>
             <td class="mono">{{ a.host }}</td>
-            <td><a class="btn small ghost" href="https://{{ a.host }}/">{{ t.home_open }}</a></td>
+            <td><a class="btn btn-small" href="https://{{ a.host }}/">{{ t.home_open }}</a></td>
           </tr>
         {% endfor %}
       </table>

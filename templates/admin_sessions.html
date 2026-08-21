@@ -10,7 +10,7 @@
 
 <div class="card">
   <div class="table-wrap">
-    <table>
+    <table class="table">
       <tr><th>Utente</th><th>Aperta</th><th>Ultimo accesso</th><th>Scade</th>
           <th>Origine</th><th>Livello</th><th></th></tr>
       {% for s in rows %}
@@ -22,12 +22,12 @@
           <td class="muted">{{ s.expires_at.strftime('%d/%m/%Y') }}</td>
           <td class="mono">{{ s.ip }}<br>
               <span class="muted">{{ s.user_agent[:48] }}</span></td>
-          <td>{% if s.elevated_at %}<span class="pill two">due</span>
-              {% else %}<span class="pill">uno</span>{% endif %}</td>
+          <td>{% if s.elevated_at %}<span class="badge badge-warn">due</span>
+              {% else %}<span class="badge badge-muted">uno</span>{% endif %}</td>
           <td>
             <form method="post" action="/admin/sessions/{{ s.id }}/revoke" class="inline">
               <input type="hidden" name="csrf" value="{{ csrf }}">
-              <button class="danger small" type="submit">Chiudi</button>
+              <button class="btn btn-danger btn-small" type="submit">Chiudi</button>
             </form>
           </td>
         </tr>

@@ -4,16 +4,16 @@
 <h1>Log</h1>
 <p class="sub">Ultimi 400 eventi.</p>
 
-<div class="card tight">
+<div class="card">
   <form method="get" action="/admin/audit" class="row">
     <div><input name="q" value="{{ q }}" placeholder="filtra per evento: login, grant, 2fa, verify…"></div>
-    <div class="fixed"><button class="ghost" type="submit">Filtra</button></div>
+    <div class="fixed"><button class="btn" type="submit">Filtra</button></div>
   </form>
 </div>
 
 <div class="card">
   <div class="table-wrap">
-    <table>
+    <table class="table">
       <tr><th>Quando</th><th>Evento</th><th>Chi</th><th>Origine</th><th>Dettaglio</th></tr>
       {% for r in rows %}
         <tr>

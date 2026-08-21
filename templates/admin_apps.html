@@ -27,7 +27,7 @@
     </div>
     <label for="description">Descrizione</label>
     <input id="description" name="description">
-    <div class="actions"><button type="submit">Registra</button></div>
+    <div class="actions"><button class="btn-primary" type="submit">Registra</button></div>
   </form>
 </div>
 
@@ -36,9 +36,9 @@
     <div class="row">
       <div style="flex:2 1 18rem">
         <strong>{{ a.name }}</strong>
-        {% if not a.active %}<span class="pill off">disattivata</span>{% endif %}
+        {% if not a.active %}<span class="badge badge-muted">disattivata</span>{% endif %}
         {% if a.default_access == 'any_authenticated' %}
-          <span class="pill">aperta a tutti gli autenticati</span>
+          <span class="badge badge-muted">aperta a tutti gli autenticati</span>
         {% endif %}
         <br><span class="mono muted">{{ a.host }}</span>
         {% if a.description %}<br><span class="muted">{{ a.description }}</span>{% endif %}
@@ -46,13 +46,13 @@
       <div class="fixed">
         <form method="post" action="/admin/apps/{{ a.id }}/toggle" class="inline">
           <input type="hidden" name="csrf" value="{{ csrf }}">
-          <button class="ghost small" type="submit">{{ 'Disattiva' if a.active else 'Riattiva' }}</button>
+          <button class="btn btn-small" type="submit">{{ 'Disattiva' if a.active else 'Riattiva' }}</button>
         </form>
         <form method="post" action="/admin/apps/{{ a.id }}/access" class="inline">
           <input type="hidden" name="csrf" value="{{ csrf }}">
           <input type="hidden" name="default_access"
                  value="{{ 'grant_required' if a.default_access == 'any_authenticated' else 'any_authenticated' }}">
-          <button class="ghost small" type="submit">
+          <button class="btn btn-small" type="submit">
             {{ 'Richiedi grant' if a.default_access == 'any_authenticated' else 'Apri a tutti' }}
           </button>
         </form>
@@ -61,15 +61,15 @@
 
     <h3>Policy per path</h3>
     <div class="table-wrap">
-      <table>
+      <table class="table">
         <tr><th>Prefisso</th><th>Livello</th><th>Elevazione valida (min)</th><th>Nota</th><th></th></tr>
         {% for p in a.policies|sort(attribute='path_prefix') %}
           <tr>
             <td class="mono">{{ p.path_prefix }}</td>
             <td>
               {% if p.level == 'two_factor' %}
-                <span class="pill two">due fattori</span>
-              {% else %}<span class="pill">un fattore</span>{% endif %}
+                <span class="badge badge-warn">due fattori</span>
+              {% else %}<span class="badge badge-muted">un fattore</span>{% endif %}
             </td>
             <td class="muted">{{ p.max_age_minutes or '—' }}</td>
             <td class="muted">{{ p.note }}</td>
@@ -78,7 +78,7 @@
                 <form method="post" action="/admin/apps/{{ a.id }}/policy" class="inline">
                   <input type="hidden" name="csrf" value="{{ csrf }}">
                   <input type="hidden" name="policy_id" value="{{ p.id }}">
-                  <button class="danger small" type="submit" name="remove" value="1">Togli</button>
+                  <button class="btn btn-danger btn-small" type="submit" name="remove" value="1">Togli</button>
                 </form>
               {% endif %}
             </td>
@@ -101,7 +101,7 @@
         </div>
         <div><label>Elevazione valida (min)</label><input name="max_age" placeholder="vuoto = tutta la sessione"></div>
         <div><label>Nota</label><input name="note"></div>
-        <div class="fixed"><button class="ghost" type="submit">Salva policy</button></div>
+        <div class="fixed"><button class="btn" type="submit">Salva policy</button></div>
       </div>
     </form>
     <p class="note" style="margin-bottom:0">

@@ -5,7 +5,7 @@
   <h1>{{ t.enroll_title }}</h1>
   <p class="sub">{{ t.enroll_sub }}</p>
 
-  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+  {% if error %}<div class="flash flash-error">{{ error }}</div>{% endif %}
 
   <div class="card">
     {% if qr %}
@@ -23,7 +23,7 @@
       <input id="code" name="code" class="mono" inputmode="numeric"
              autocomplete="one-time-code" autofocus required>
       <div class="actions">
-        <button type="submit">{{ t.enroll_activate }}</button>
+        <button class="btn-primary" type="submit">{{ t.enroll_activate }}</button>
       </div>
     </form>
     <p class="note" style="margin-bottom:0">{{ t.enroll_note }}</p>
