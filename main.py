@@ -374,6 +374,27 @@ def login_submit(request: Request, email: str = Form(""),
     return r
 
 
+@app.get("/logout", response_class=HTMLResponse)
+def logout_confirm(request: Request,
+                   borant_session: str | None = Cookie(default=None),
+                   db: DbSession = Depends(get_db)):
+    """Le app del perimetro mandano qui il browser quando qualcuno esce (§10
+    regola 5), e un redirect è per forza una GET: senza questa rotta l'utente
+    riceve un «Method Not Allowed» invece di uscire.
+
+    Ma la GET **non revoca**, e la ragione è precisa: `SameSite=Lax` spedisce
+    il cookie sulle navigazioni GET di primo livello, quindi un `<img
+    src="https://id.borant.eu/logout">` su un sito qualunque butterebbe fuori
+    chiunque lo guardasse. Qui si chiede; a revocare resta la form in POST.
+
+    Chi arriva senza sessione è già fuori: lo si manda al login invece di
+    mostrargli un bottone che non fa niente."""
+    sess, user = current(db, borant_session)
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
+    return page(request, db, "logout.html", sess, user)
+
+
 @app.post("/logout")
 def logout(request: Request, borant_session: str | None = Cookie(default=None),
            db: DbSession = Depends(get_db)):

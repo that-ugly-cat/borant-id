@@ -35,6 +35,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_log": "Log",
         "nav_config": "Configurazione",
         "nav_logout": "Esci",
+        "logout_title": "Uscire da Borant ID?",
+        "logout_sub": "Chiude la sessione qui e in tutti gli strumenti che stanno dietro a questo ingresso, non solo in quello da cui sei arrivato.",
+        "logout_confirm": "Esci",
+        "logout_cancel": "Annulla",
         "tagline": "Accesso unico agli strumenti di ricerca",
 
         # comune
@@ -237,6 +241,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_log": "Log",
         "nav_config": "Configuration",
         "nav_logout": "Sign out",
+        "logout_title": "Sign out of Borant ID?",
+        "logout_sub": "This ends your session here and in every tool behind this sign-in, not only the one you came from.",
+        "logout_confirm": "Sign out",
+        "logout_cancel": "Cancel",
         "tagline": "Single sign-on for the research tools",
 
         "email": "Email",
@@ -421,6 +429,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_log": "Protokoll",
         "nav_config": "Konfiguration",
         "nav_logout": "Abmelden",
+        "logout_title": "Von Borant ID abmelden?",
+        "logout_sub": "Damit endet die Sitzung hier und in allen Werkzeugen hinter diesem Zugang, nicht nur in dem, aus dem Sie kommen.",
+        "logout_confirm": "Abmelden",
+        "logout_cancel": "Abbrechen",
         "tagline": "Einheitlicher Zugang zu den Forschungswerkzeugen",
 
         "email": "E-Mail",
@@ -617,6 +629,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_log": "Journal",
         "nav_config": "Configuration",
         "nav_logout": "Se déconnecter",
+        "logout_title": "Se déconnecter de Borant ID ?",
+        "logout_sub": "Cela met fin à la session ici et dans tous les outils situés derrière cet accès, pas seulement celui d'où vous venez.",
+        "logout_confirm": "Se déconnecter",
+        "logout_cancel": "Annuler",
         "tagline": "Accès unique aux outils de recherche",
 
         "email": "Courriel",
