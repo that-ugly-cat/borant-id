@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Log — {{ site_name }}{% endblock %}
+{% block body %}
+<h1>Log</h1>
+<p class="sub">Ultimi 400 eventi.</p>
+
+<div class="card tight">
+  <form method="get" action="/admin/audit" class="row">
+    <div><input name="q" value="{{ q }}" placeholder="filtra per evento: login, grant, 2fa, verify…"></div>
+    <div class="fixed"><button class="ghost" type="submit">Filtra</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <tr><th>Quando</th><th>Evento</th><th>Chi</th><th>Origine</th><th>Dettaglio</th></tr>
+      {% for r in rows %}
+        <tr>
+          <td class="muted">{{ r.ts.strftime('%d/%m %H:%M:%S') }}</td>
+          <td class="mono">{{ r.event }}</td>
+          <td>{{ users[r.user_id].display if r.user_id in users else '—' }}</td>
+          <td class="mono muted">{{ r.ip }}</td>
+          <td class="muted break" style="font-size:.82rem">{{ r.detail }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+
+<p class="note">
+  <code>verify.unknown_host</code> significa che una richiesta è arrivata dal
+  gate per un host che non è registrato qui: è un errore di configurazione in
+  Caddy, e il gate ha chiuso la porta.
+</p>
+{% endblock %}

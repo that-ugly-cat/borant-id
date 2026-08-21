@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Ciao {{ user.display }}</h1>
+<p class="sub">Gli strumenti a cui hai accesso.</p>
+
+{% if apps %}
+  <div class="table-wrap">
+    <table>
+      <tr><th>App</th><th>Indirizzo</th><th></th></tr>
+      {% for a in apps %}
+        <tr>
+          <td><strong>{{ a.name }}</strong>
+            {% if a.description %}<br><span class="muted">{{ a.description }}</span>{% endif %}
+          </td>
+          <td class="mono">{{ a.host }}</td>
+          <td><a class="btn small ghost" href="https://{{ a.host }}/">Apri</a></td>
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
+{% else %}
+  <div class="card">
+    <p style="margin:0">
+      Nessuna app associata al tuo account. Se dovresti averne una, chiedi a un
+      amministratore.
+    </p>
+  </div>
+{% endif %}
+
+<p class="note">
+  Da <a href="/profile">Profilo</a> puoi cambiare password, attivare il secondo
+  fattore, collegare ORCID e chiudere le sessioni aperte.
+</p>
+{% endblock %}

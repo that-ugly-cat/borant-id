@@ -1,0 +1,10 @@
+fastapi==0.141.1
+starlette==1.6.0
+uvicorn[standard]
+jinja2
+python-multipart
+sqlalchemy
+bcrypt
+cryptography
+httpx
+qrcode[pil]

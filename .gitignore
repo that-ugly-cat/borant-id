@@ -1,0 +1,18 @@
+# segreti — mai nel repo
+.env
+.env.local
+docker-compose.yml
+
+# stato locale
+data/
+*.db
+*.sqlite3
+
+# build / dev
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# documento interno di progettazione: resta locale, come per PaperTrail e LSSR
+SPEC.md

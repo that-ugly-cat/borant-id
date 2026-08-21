@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ site_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <a class="brand" href="/">{{ site_name }}</a>
+  <nav>
+    {% if user %}
+      <a href="/profile">Profilo</a>
+      {% if user.is_admin %}
+        <a href="/admin/users">Utenti</a>
+        <a href="/admin/apps">App</a>
+        <a href="/admin/sessions">Sessioni</a>
+        <a href="/admin/audit">Log</a>
+        <a href="/admin/config">Configurazione</a>
+      {% endif %}
+      <form method="post" action="/logout" class="inline">
+        <button class="link">Esci</button>
+      </form>
+    {% endif %}
+  </nav>
+</header>
+
+<main>
+  {% block body %}{% endblock %}
+</main>
+
+<footer>
+  <span>{{ site_name }}</span>
+  {% if user %}<span>{{ user.display }}</span>{% endif %}
+</footer>
+</body>
+</html>

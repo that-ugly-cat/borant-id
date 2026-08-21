@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Codici di backup — {{ site_name }}{% endblock %}
+{% block body %}
+<div class="narrow">
+  <h1>Codici di backup</h1>
+  <p class="sub">
+    Dieci codici, ognuno usabile una volta sola, al posto del codice
+    dell'app quando non hai il telefono. <strong>Non li rivedrai.</strong>
+  </p>
+
+  <div class="card">
+    <div class="codes">
+      {% for c in codes %}<span>{{ c }}</span>{% endfor %}
+    </div>
+  </div>
+
+  <p class="note">
+    I codici precedenti, se ce n'erano, sono stati invalidati.
+  </p>
+  <a class="btn" href="/profile">Fatto, li ho messi al sicuro</a>
+</div>
+{% endblock %}

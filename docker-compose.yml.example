@@ -1,0 +1,24 @@
+# Copia in docker-compose.yml sul server e affianca un .env non tracciato.
+services:
+  borantid:
+    build: .
+    container_name: borantid
+    restart: always
+    # 127.0.0.1 e non 0.0.0.0: l'invariante numero uno del disegno poggia sul
+    # bind, non sul firewall (SPEC.md §4).
+    ports:
+      - "127.0.0.1:8019:8019"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - FERNET_KEY=${FERNET_KEY}
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN:-.borant.eu}
+      - COOKIE_SECURE=${COOKIE_SECURE:-1}
+      - ORCID_CLIENT_ID=${ORCID_CLIENT_ID:-}
+      - ORCID_CLIENT_SECRET=${ORCID_CLIENT_SECRET:-}
+      - ORCID_SANDBOX=${ORCID_SANDBOX:-0}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8019/healthz')\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3

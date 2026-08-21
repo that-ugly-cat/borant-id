@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Attiva il tuo accesso — {{ site_name }}{% endblock %}
+{% block body %}
+<div class="narrow">
+  <h1>Attiva il tuo accesso</h1>
+  <p class="sub">Invito per <strong>{{ tok.email }}</strong>.</p>
+
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+  <div class="card">
+    <form method="post" action="/invite/{{ raw }}">
+      <label for="name">Nome</label>
+      <input id="name" name="name" type="text" value="{{ data.name or '' }}" autofocus>
+      <label for="password">Password (almeno 10 caratteri)</label>
+      <input id="password" name="password" type="password" autocomplete="new-password" required>
+      <label for="password2">Ripeti la password</label>
+      <input id="password2" name="password2" type="password" autocomplete="new-password" required>
+      <div class="actions">
+        <button type="submit">Attiva</button>
+      </div>
+    </form>
+  </div>
+
+  {% if orcid_ready %}
+    <p class="note">
+      Potrai collegare il tuo ORCID subito dopo, dal profilo. Il collegamento
+      avviene solo da una sessione già autenticata: mai per corrispondenza
+      automatica di email.
+    </p>
+  {% endif %}
+</div>
+{% endblock %}

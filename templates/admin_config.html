@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Configurazione — {{ site_name }}{% endblock %}
+{% block body %}
+<h1>Configurazione</h1>
+<p class="sub">
+  Il relay SMTP si imposta qui e non nell'ambiente: la casella non si conosce al
+  momento del deploy. Le chiavi (JWT, Fernet, ORCID) restano dove sono, cioè
+  fuori dalla portata di un form.
+</p>
+
+{% if msg %}<div class="ok">{{ msg }}</div>{% endif %}
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+<div class="card">
+  <form method="post" action="/admin/config">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+
+    <h3>Generale</h3>
+    <div class="row">
+      <div><label for="site_name">Nome</label>
+        <input id="site_name" name="site_name" value="{{ site_name }}"></div>
+      <div><label for="public_base_url">URL pubblico</label>
+        <input id="public_base_url" name="public_base_url" class="mono" value="{{ base }}"></div>
+    </div>
+    <p class="note">
+      L'URL pubblico finisce nei link degli inviti e nei redirect verso ORCID:
+      se è sbagliato, il flusso ORCID smette di funzionare.
+    </p>
+
+    <h3>SMTP</h3>
+    <label>
+      <input type="checkbox" name="smtp_enabled" value="1" {% if cfg.enabled %}checked{% endif %}>
+      attivo
+    </label>
+    <div class="row">
+      <div><label for="smtp_host">Host</label>
+        <input id="smtp_host" name="smtp_host" class="mono" value="{{ cfg.host }}"
+               placeholder="smtp.gmail.com"></div>
+      <div><label for="smtp_port">Porta</label>
+        <input id="smtp_port" name="smtp_port" value="{{ cfg.port }}"></div>
+      <div>
+        <label for="smtp_security">Sicurezza</label>
+        <select id="smtp_security" name="smtp_security">
+          {% for s in ['starttls', 'ssl', 'none'] %}
+            <option value="{{ s }}" {% if cfg.security == s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div><label for="smtp_username">Utente</label>
+        <input id="smtp_username" name="smtp_username" value="{{ cfg.username }}"></div>
+      <div>
+        <label for="smtp_password">Password
+          {% if has_password %}<span class="pill on">impostata</span>{% endif %}
+        </label>
+        <input id="smtp_password" name="smtp_password" type="password"
+               autocomplete="new-password"
+               placeholder="{{ 'lascia vuoto per non cambiarla' if has_password else '' }}">
+      </div>
+      <div class="fixed">
+        <label><input type="checkbox" name="clear_password" value="1"> cancella</label>
+      </div>
+    </div>
+    <div class="row">
+      <div><label for="smtp_from_email">Mittente</label>
+        <input id="smtp_from_email" name="smtp_from_email" type="email"
+               value="{{ cfg.from_email }}"></div>
+      <div><label for="smtp_from_name">Nome mittente</label>
+        <input id="smtp_from_name" name="smtp_from_name" value="{{ cfg.from_name }}"></div>
+    </div>
+
+    <div class="actions"><button type="submit">Salva</button></div>
+  </form>
+</div>
+
+<h2>Prova di invio</h2>
+<div class="card">
+  <form method="post" action="/admin/config/test" class="row">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div><label for="to">Destinatario</label>
+      <input id="to" name="to" type="email" value="{{ user.email }}"></div>
+    <div class="fixed"><button class="ghost" type="submit">Manda una mail di prova</button></div>
+  </form>
+</div>
+
+<div class="note">
+  <strong>Due trappole note.</strong>
+  Con Gmail serve l'autenticazione a due fattori attiva sull'account più una
+  <em>app password</em> (<code>smtp.gmail.com:587</code>, STARTTLS): la password
+  normale viene rifiutata. Su Microsoft 365 molti tenant hanno
+  <strong>SMTP AUTH disabilitato per default</strong>, e in quel caso serve
+  l'amministratore del tenant: nessuna configurazione qui può aggirarlo.
+  <br><br>
+  In ogni caso la mail resta una dipendenza <em>degradabile</em>: se il relay è
+  giù, gli inviti mostrano il link da copiare a mano invece di fallire.
+</div>
+{% endblock %}

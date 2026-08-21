@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}App — {{ site_name }}{% endblock %}
+{% block body %}
+<h1>App e policy</h1>
+<p class="sub">
+  Qui si decide <em>che livello serve su quale path</em>. Se un path passi dal
+  gate oppure resti pubblico lo decide Caddy, non questa pagina: sono due
+  domande con due proprietari.
+</p>
+
+<h2>Registra un'app</h2>
+<div class="card">
+  <form method="post" action="/admin/apps">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="row">
+      <div><label for="slug">Slug</label><input id="slug" name="slug" required></div>
+      <div><label for="name">Nome</label><input id="name" name="name"></div>
+      <div><label for="host">Host</label><input id="host" name="host" class="mono"
+             placeholder="lssr.borant.eu" required></div>
+      <div>
+        <label for="default_access">Accesso</label>
+        <select id="default_access" name="default_access">
+          <option value="grant_required">solo chi ha un grant</option>
+          <option value="any_authenticated">chiunque sia autenticato</option>
+        </select>
+      </div>
+    </div>
+    <label for="description">Descrizione</label>
+    <input id="description" name="description">
+    <div class="actions"><button type="submit">Registra</button></div>
+  </form>
+</div>
+
+{% for a in rows %}
+  <div class="card" id="a{{ a.id }}">
+    <div class="row">
+      <div style="flex:2 1 18rem">
+        <strong>{{ a.name }}</strong>
+        {% if not a.active %}<span class="pill off">disattivata</span>{% endif %}
+        {% if a.default_access == 'any_authenticated' %}
+          <span class="pill">aperta a tutti gli autenticati</span>
+        {% endif %}
+        <br><span class="mono muted">{{ a.host }}</span>
+        {% if a.description %}<br><span class="muted">{{ a.description }}</span>{% endif %}
+      </div>
+      <div class="fixed">
+        <form method="post" action="/admin/apps/{{ a.id }}/toggle" class="inline">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button class="ghost small" type="submit">{{ 'Disattiva' if a.active else 'Riattiva' }}</button>
+        </form>
+        <form method="post" action="/admin/apps/{{ a.id }}/access" class="inline">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="hidden" name="default_access"
+                 value="{{ 'grant_required' if a.default_access == 'any_authenticated' else 'any_authenticated' }}">
+          <button class="ghost small" type="submit">
+            {{ 'Richiedi grant' if a.default_access == 'any_authenticated' else 'Apri a tutti' }}
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <h3>Policy per path</h3>
+    <div class="table-wrap">
+      <table>
+        <tr><th>Prefisso</th><th>Livello</th><th>Elevazione valida (min)</th><th>Nota</th><th></th></tr>
+        {% for p in a.policies|sort(attribute='path_prefix') %}
+          <tr>
+            <td class="mono">{{ p.path_prefix }}</td>
+            <td>
+              {% if p.level == 'two_factor' %}
+                <span class="pill two">due fattori</span>
+              {% else %}<span class="pill">un fattore</span>{% endif %}
+            </td>
+            <td class="muted">{{ p.max_age_minutes or '—' }}</td>
+            <td class="muted">{{ p.note }}</td>
+            <td>
+              {% if p.path_prefix != '/' %}
+                <form method="post" action="/admin/apps/{{ a.id }}/policy" class="inline">
+                  <input type="hidden" name="csrf" value="{{ csrf }}">
+                  <input type="hidden" name="policy_id" value="{{ p.id }}">
+                  <button class="danger small" type="submit" name="remove" value="1">Togli</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+
+    <form method="post" action="/admin/apps/{{ a.id }}/policy">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <div class="row">
+        <div><label>Prefisso</label><input name="path_prefix" class="mono" value="/admin"></div>
+        <div>
+          <label>Livello</label>
+          <select name="level">
+            {% for l in levels %}
+              <option value="{{ l }}">{{ 'due fattori' if l == 'two_factor' else 'un fattore' }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div><label>Elevazione valida (min)</label><input name="max_age" placeholder="vuoto = tutta la sessione"></div>
+        <div><label>Nota</label><input name="note"></div>
+        <div class="fixed"><button class="ghost" type="submit">Salva policy</button></div>
+      </div>
+    </form>
+    <p class="note" style="margin-bottom:0">
+      Vince il prefisso più lungo che combacia, confrontato su path
+      normalizzato e in minuscolo.
+    </p>
+  </div>
+{% endfor %}
+{% endblock %}

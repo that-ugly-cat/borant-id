@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Utenti — {{ site_name }}{% endblock %}
+{% block body %}
+<h1>Utenti</h1>
+<p class="sub">Chi esiste, e a quali app può entrare.</p>
+
+{% if invite_link %}
+  <div class="error">
+    <strong>La mail non è partita:</strong> {{ mail_error }}<br>
+    Il link d'invito è comunque valido — passalo a mano:
+    <p class="mono break" style="margin:.4rem 0 0">{{ invite_link }}</p>
+  </div>
+{% endif %}
+
+<h2>Invita</h2>
+<div class="card">
+  <form method="post" action="/admin/users/invite">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="row">
+      <div>
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" required>
+      </div>
+      <div>
+        <label for="name">Nome</label>
+        <input id="name" name="name" type="text">
+      </div>
+      <div>
+        <label for="orcid_hint">ORCID atteso (facoltativo)</label>
+        <input id="orcid_hint" name="orcid_hint" type="text" class="mono"
+               placeholder="0000-0002-...">
+      </div>
+      <div class="fixed">
+        <label><input type="checkbox" name="is_admin" value="1"> amministratore</label>
+      </div>
+    </div>
+
+    <h3>Accesso alle app</h3>
+    <div class="table-wrap">
+      <table>
+        <tr><th></th><th>App</th><th>Ruolo suggerito (X-Borant-Hint)</th></tr>
+        {% for a in apps %}
+          <tr>
+            <td><input type="checkbox" name="app_{{ a.id }}" value="1"></td>
+            <td>{{ a.name }} <span class="muted mono">{{ a.host }}</span></td>
+            <td><input type="text" name="hint_{{ a.id }}" placeholder="es. reader"></td>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+    <div class="actions"><button type="submit">Manda l'invito</button></div>
+  </form>
+</div>
+
+{% if pending %}
+  <h2>Inviti in attesa</h2>
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <tr><th>Email</th><th>Creato</th><th>Scade</th><th>Da</th></tr>
+        {% for t in pending %}
+          <tr>
+            <td>{{ t.email }}</td>
+            <td>{{ t.created_at.strftime('%d/%m/%Y') }}</td>
+            <td>{{ t.expires_at.strftime('%d/%m/%Y') }}</td>
+            <td class="muted">{{ t.created_by }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+{% endif %}
+
+<h2>Persone</h2>
+{% for u in rows %}
+  <div class="card" id="u{{ u.id }}">
+    <div class="row">
+      <div style="flex:2 1 18rem">
+        <strong>{{ u.display }}</strong>
+        {% if u.is_admin %}<span class="pill two">admin</span>{% endif %}
+        {% if not u.is_active %}<span class="pill off">disattivato</span>{% endif %}
+        {% if u.has_totp %}<span class="pill on">2FA</span>{% endif %}
+        <br>
+        <span class="muted">{{ u.email }}</span>
+        {% if u.orcid %}<br><span class="mono muted">{{ u.orcid }}</span>{% endif %}
+        <br><span class="muted mono" style="font-size:.78rem">{{ u.subject }}</span>
+      </div>
+      <div class="fixed">
+        <form method="post" action="/admin/users/{{ u.id }}/toggle-active" class="inline">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button class="ghost small" type="submit">{{ 'Disattiva' if u.is_active else 'Riattiva' }}</button>
+        </form>
+        <form method="post" action="/admin/users/{{ u.id }}/toggle-admin" class="inline">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button class="ghost small" type="submit">{{ 'Togli admin' if u.is_admin else 'Rendi admin' }}</button>
+        </form>
+        <form method="post" action="/admin/users/{{ u.id }}/reset-2fa" class="inline">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button class="danger small" type="submit">Azzera 2FA</button>
+        </form>
+      </div>
+    </div>
+
+    <h3>App</h3>
+    <div class="table-wrap">
+      <table>
+        {% for a in apps %}
+          {% set g = u.grants | selectattr('app_id', 'equalto', a.id) | first %}
+          <tr>
+            <td style="width:14rem">{{ a.name }}
+              {% if a.default_access == 'any_authenticated' %}
+                <span class="pill">aperta a tutti</span>
+              {% endif %}
+            </td>
+            <td>
+              <form method="post" action="/admin/users/{{ u.id }}/grant" class="row">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                <input type="hidden" name="app_id" value="{{ a.id }}">
+                <input type="text" name="level_hint" placeholder="ruolo suggerito"
+                       value="{{ g.level_hint if g else '' }}">
+                <span class="fixed">
+                  <button class="small {{ '' if g else 'ghost' }}" type="submit">
+                    {{ 'Aggiorna' if g else 'Concedi' }}
+                  </button>
+                </span>
+                {% if g %}
+                  <span class="fixed">
+                    <button class="danger small" type="submit" name="remove" value="1">Revoca</button>
+                  </span>
+                {% endif %}
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Sessioni — {{ site_name }}{% endblock %}
+{% block body %}
+<h1>Sessioni attive</h1>
+<p class="sub">
+  Tutte le sessioni vive del perimetro, e il bottone per chiuderle. Fino a oggi
+  questa pagina non poteva esistere: le app portano JWT stateless, che nessuno
+  può revocare.
+</p>
+
+<div class="card">
+  <div class="table-wrap">
+    <table>
+      <tr><th>Utente</th><th>Aperta</th><th>Ultimo accesso</th><th>Scade</th>
+          <th>Origine</th><th>Livello</th><th></th></tr>
+      {% for s in rows %}
+        <tr>
+          <td>{{ s.user.display if s.user else '—' }}<br>
+              <span class="muted">{{ s.user.email if s.user else '' }}</span></td>
+          <td>{{ s.authed_at.strftime('%d/%m %H:%M') }}</td>
+          <td>{{ s.last_seen_at.strftime('%d/%m %H:%M') }}</td>
+          <td class="muted">{{ s.expires_at.strftime('%d/%m/%Y') }}</td>
+          <td class="mono">{{ s.ip }}<br>
+              <span class="muted">{{ s.user_agent[:48] }}</span></td>
+          <td>{% if s.elevated_at %}<span class="pill two">due</span>
+              {% else %}<span class="pill">uno</span>{% endif %}</td>
+          <td>
+            <form method="post" action="/admin/sessions/{{ s.id }}/revoke" class="inline">
+              <input type="hidden" name="csrf" value="{{ csrf }}">
+              <button class="danger small" type="submit">Chiudi</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+
+<p class="note">
+  Una revoca ha effetto entro trenta secondi, che è la durata della cache
+  davanti al database. La cache viene svuotata subito per l'utente toccato,
+  quindi in pratica è immediata; i trenta secondi sono il caso peggiore con
+  più worker.
+</p>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Attiva il secondo fattore — {{ site_name }}{% endblock %}
+{% block body %}
+<div class="narrow">
+  <h1>Attiva il secondo fattore</h1>
+  <p class="sub">
+    La destinazione che hai chiesto richiede due fattori e tu non ne hai
+    ancora uno. Si attiva qui, adesso: sei già autenticato, quindi non c'è
+    nessun vicolo cieco.
+  </p>
+
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+  <div class="card">
+    {% if qr %}
+      <img class="qr" src="{{ qr }}" alt="QR code per l'app di autenticazione">
+    {% endif %}
+    <label>Oppure inserisci a mano questa chiave</label>
+    <p class="mono break">{{ secret }}</p>
+    <p class="note">
+      Va bene qualsiasi app TOTP: Ente Auth, Aegis, Google Authenticator.
+    </p>
+
+    <form method="post" action="/2fa">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="rd" value="{{ rd }}">
+      <input type="hidden" name="stash" value="{{ stash }}">
+      <label for="code">Conferma con il codice che l'app mostra adesso</label>
+      <input id="code" name="code" class="mono" inputmode="numeric"
+             autocomplete="one-time-code" autofocus required>
+      <div class="actions">
+        <button type="submit">Attiva</button>
+      </div>
+    </form>
+    <p class="note" style="margin-bottom:0">
+      La chiave viene salvata solo dopo che un codice ha dimostrato che l'app
+      ce l'ha davvero.
+    </p>
+  </div>
+</div>
+{% endblock %}
