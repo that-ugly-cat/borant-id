@@ -1,32 +1,25 @@
 {% extends "base.html" %}
-{% block title %}Reimposta la password — {{ site_name }}{% endblock %}
+{% block title %}{{ t.reset_title }} — {{ site_name }}{% endblock %}
 {% block body %}
 <div class="narrow">
-  <h1>Reimposta la password</h1>
+  <h1>{{ t.reset_title }}</h1>
 
   {% if sent %}
     <div class="card">
-      <p style="margin:0">
-        Se quell'indirizzo ha un account qui, è partita una mail con il link.
-        Scade fra un'ora e si usa una volta sola.
-      </p>
+      <p style="margin:0">{{ t.reset_sent }}</p>
     </div>
-    <p class="note">
-      Non ti diciamo se l'indirizzo esiste: non è una cosa che un form debba
-      rivelare. Se la mail non arriva, chiedi a un amministratore — può darti
-      il link a mano.
-    </p>
-    <a class="btn ghost" href="/login">Torna al login</a>
+    <p class="note">{{ t.reset_privacy }}</p>
+    <a class="btn ghost" href="/login">{{ t.reset_back }}</a>
   {% else %}
-    <p class="sub">Ti mandiamo un link valido un'ora.</p>
+    <p class="sub">{{ t.reset_sub }}</p>
     {% if error %}<div class="error">{{ error }}</div>{% endif %}
     <div class="card">
       <form method="post" action="/reset">
-        <label for="email">Email</label>
+        <label for="email">{{ t.email }}</label>
         <input id="email" name="email" type="email" autocomplete="username" required autofocus>
         <div class="actions">
-          <button type="submit">Mandami il link</button>
-          <a class="muted" href="/login">Torna al login</a>
+          <button type="submit">{{ t.reset_send }}</button>
+          <a class="muted" href="/login">{{ t.reset_back }}</a>
         </div>
       </form>
     </div>

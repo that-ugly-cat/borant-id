@@ -1,41 +1,32 @@
 {% extends "base.html" %}
-{% block title %}Attiva il secondo fattore — {{ site_name }}{% endblock %}
+{% block title %}{{ t.enroll_title }} — {{ site_name }}{% endblock %}
 {% block body %}
 <div class="narrow">
-  <h1>Attiva il secondo fattore</h1>
-  <p class="sub">
-    La destinazione che hai chiesto richiede due fattori e tu non ne hai
-    ancora uno. Si attiva qui, adesso: sei già autenticato, quindi non c'è
-    nessun vicolo cieco.
-  </p>
+  <h1>{{ t.enroll_title }}</h1>
+  <p class="sub">{{ t.enroll_sub }}</p>
 
   {% if error %}<div class="error">{{ error }}</div>{% endif %}
 
   <div class="card">
     {% if qr %}
-      <img class="qr" src="{{ qr }}" alt="QR code per l'app di autenticazione">
+      <img class="qr" src="{{ qr }}" alt="{{ t.enroll_qr_alt }}">
     {% endif %}
-    <label>Oppure inserisci a mano questa chiave</label>
+    <label>{{ t.enroll_manual }}</label>
     <p class="mono break">{{ secret }}</p>
-    <p class="note">
-      Va bene qualsiasi app TOTP: Ente Auth, Aegis, Google Authenticator.
-    </p>
+    <p class="note">{{ t.enroll_apps }}</p>
 
     <form method="post" action="/2fa">
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <input type="hidden" name="rd" value="{{ rd }}">
       <input type="hidden" name="stash" value="{{ stash }}">
-      <label for="code">Conferma con il codice che l'app mostra adesso</label>
+      <label for="code">{{ t.enroll_confirm }}</label>
       <input id="code" name="code" class="mono" inputmode="numeric"
              autocomplete="one-time-code" autofocus required>
       <div class="actions">
-        <button type="submit">Attiva</button>
+        <button type="submit">{{ t.enroll_activate }}</button>
       </div>
     </form>
-    <p class="note" style="margin-bottom:0">
-      La chiave viene salvata solo dopo che un codice ha dimostrato che l'app
-      ce l'ha davvero.
-    </p>
+    <p class="note" style="margin-bottom:0">{{ t.enroll_note }}</p>
   </div>
 </div>
 {% endblock %}

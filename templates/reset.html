@@ -1,19 +1,19 @@
 {% extends "base.html" %}
-{% block title %}Nuova password — {{ site_name }}{% endblock %}
+{% block title %}{{ t.reset_new_title }} — {{ site_name }}{% endblock %}
 {% block body %}
 <div class="narrow">
-  <h1>Nuova password</h1>
-  <p class="sub">Tutte le sessioni aperte verranno chiuse.</p>
+  <h1>{{ t.reset_new_title }}</h1>
+  <p class="sub">{{ t.reset_new_sub }}</p>
 
   {% if error %}<div class="error">{{ error }}</div>{% endif %}
 
   <div class="card">
     <form method="post" action="/reset/{{ raw }}">
-      <label for="password">Password (almeno 10 caratteri)</label>
+      <label for="password">{{ t.invite_pw }}</label>
       <input id="password" name="password" type="password" autocomplete="new-password" required autofocus>
-      <label for="password2">Ripeti la password</label>
+      <label for="password2">{{ t.invite_pw2 }}</label>
       <input id="password2" name="password2" type="password" autocomplete="new-password" required>
-      <div class="actions"><button type="submit">Salva</button></div>
+      <div class="actions"><button type="submit">{{ t.save }}</button></div>
     </form>
   </div>
 </div>

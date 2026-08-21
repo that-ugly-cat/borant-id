@@ -1,107 +1,104 @@
 {% extends "base.html" %}
-{% block title %}Profilo — {{ site_name }}{% endblock %}
+{% block title %}{{ t.profile_title }} — {{ site_name }}{% endblock %}
 {% block body %}
-<h1>Profilo</h1>
+<h1>{{ t.profile_title }}</h1>
 <p class="sub">{{ user.email }} · <span class="mono">{{ user.subject }}</span></p>
 
 {% if msg %}<div class="ok">{{ msg }}</div>{% endif %}
 {% if error %}<div class="error">{{ error }}</div>{% endif %}
 
-<h2>Password</h2>
+<h2>{{ t.profile_pw }}</h2>
 <div class="card">
   <form method="post" action="/profile/password">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="row">
       <div>
-        <label for="current_pw">Password attuale</label>
+        <label for="current_pw">{{ t.profile_pw_current }}</label>
         <input id="current_pw" name="current_pw" type="password" autocomplete="current-password">
       </div>
       <div>
-        <label for="password">Nuova</label>
+        <label for="password">{{ t.profile_pw_new }}</label>
         <input id="password" name="password" type="password" autocomplete="new-password" required>
       </div>
       <div>
-        <label for="password2">Ripeti</label>
+        <label for="password2">{{ t.profile_pw_repeat }}</label>
         <input id="password2" name="password2" type="password" autocomplete="new-password" required>
       </div>
-      <div class="fixed"><button type="submit">Cambia</button></div>
+      <div class="fixed"><button type="submit">{{ t.profile_pw_change }}</button></div>
     </div>
   </form>
-  <p class="note" style="margin-bottom:0">
-    Cambiando la password si chiudono tutte le altre sessioni, questa esclusa.
-  </p>
+  <p class="note" style="margin-bottom:0">{{ t.profile_pw_note }}</p>
 </div>
 
-<h2>Secondo fattore</h2>
+<h2>{{ t.profile_2fa }}</h2>
 <div class="card">
   {% if user.has_totp %}
     <p>
-      <span class="pill on">Attivo</span>
-      Codici di backup non ancora usati: <strong>{{ unused_codes }}</strong>
+      <span class="pill on">{{ t.profile_2fa_on }}</span>
+      {{ t.profile_2fa_codes }} <strong>{{ unused_codes }}</strong>
     </p>
     <div class="actions">
       <form method="post" action="/profile/backup-codes" class="inline">
         <input type="hidden" name="csrf" value="{{ csrf }}">
-        <button class="ghost small" type="submit">Rigenera i codici di backup</button>
+        <button class="ghost small" type="submit">{{ t.profile_2fa_regen }}</button>
       </form>
       <form method="post" action="/profile/always-2fa" class="inline">
         <input type="hidden" name="csrf" value="{{ csrf }}">
         <input type="hidden" name="value" value="{{ '0' if user.always_2fa else '1' }}">
         <button class="ghost small" type="submit">
-          {% if user.always_2fa %}Non chiedermelo a ogni accesso{% else %}Chiedimelo a ogni accesso{% endif %}
+          {{ t.profile_2fa_always_off if user.always_2fa else t.profile_2fa_always_on }}
         </button>
       </form>
       <form method="post" action="/profile/totp/disable" class="inline">
         <input type="hidden" name="csrf" value="{{ csrf }}">
-        <button class="danger small" type="submit">Disattiva</button>
+        <button class="danger small" type="submit">{{ t.profile_2fa_disable }}</button>
       </form>
     </div>
   {% else %}
-    <p><span class="pill off">Non attivo</span></p>
-    <p class="note">
-      Non è obbligatorio in generale, ma alcune app lo richiedono: quando ne
-      apri una, l'attivazione ti viene proposta lì per lì.
-    </p>
-    <a class="btn ghost" href="/2fa">Attivalo adesso</a>
+    <p><span class="pill off">{{ t.profile_2fa_off }}</span></p>
+    <p class="note">{{ t.profile_2fa_note }}</p>
+    <a class="btn ghost" href="/2fa">{{ t.profile_2fa_activate }}</a>
   {% endif %}
 </div>
 
-<h2>ORCID</h2>
+<h2>{{ t.profile_orcid }}</h2>
 <div class="card">
   {% if user.orcid %}
     <p>
-      Collegato: <a class="mono" href="{{ orcid_url }}" target="_blank" rel="noopener">{{ user.orcid }}</a>
+      {{ t.profile_orcid_linked }}
+      <a class="mono" href="{{ orcid_url }}" target="_blank" rel="noopener">{{ user.orcid }}</a>
     </p>
-    <p class="note" style="margin-bottom:0">
-      ORCID vale come <strong>un fattore solo</strong>: il suo token non dice in
-      modo affidabile se hai fatto la verifica in due passaggi da loro, quindi
-      per le app che chiedono due fattori serve comunque il codice qui.
-    </p>
+    <p class="note" style="margin-bottom:0">{{ t.profile_orcid_one | safe }}</p>
   {% elif orcid_ready %}
-    <p class="note">
-      Collegarlo ti permette di entrare con ORCID invece che con la password.
-    </p>
-    <a class="btn ghost" href="/link/orcid">Collega il mio ORCID</a>
+    <p class="note">{{ t.profile_orcid_note }}</p>
+    <a class="btn ghost" href="/link/orcid">{{ t.profile_orcid_link }}</a>
   {% else %}
-    <p class="muted" style="margin:0">ORCID non è ancora configurato su questo server.</p>
+    <p class="muted" style="margin:0">{{ t.profile_orcid_none }}</p>
   {% endif %}
 </div>
 
-<h2>Sessioni aperte</h2>
+<h2>{{ t.profile_sessions }}</h2>
 <div class="card">
   <div class="table-wrap">
     <table>
-      <tr><th>Aperta</th><th>Ultimo accesso</th><th>Origine</th><th>Livello</th><th></th></tr>
+      <tr>
+        <th>{{ t.profile_s_opened }}</th><th>{{ t.profile_s_last }}</th>
+        <th>{{ t.profile_s_origin }}</th><th>{{ t.profile_s_level }}</th><th></th>
+      </tr>
       {% for s in live %}
         <tr>
-          <td>{{ s.authed_at.strftime('%d/%m/%Y %H:%M') }}{% if s.id == sess.id %} <span class="pill on">questa</span>{% endif %}</td>
+          <td>{{ s.authed_at.strftime('%d/%m/%Y %H:%M') }}{% if s.id == sess.id %}
+              <span class="pill on">{{ t.profile_s_this }}</span>{% endif %}</td>
           <td>{{ s.last_seen_at.strftime('%d/%m %H:%M') }}</td>
           <td class="mono">{{ s.ip }}<br><span class="muted">{{ s.user_agent[:60] }}</span></td>
-          <td>{% if s.elevated_at %}<span class="pill two">due fattori</span>{% else %}<span class="pill">un fattore</span>{% endif %}</td>
+          <td>
+            {% if s.elevated_at %}<span class="pill two">{{ t.profile_s_two }}</span>
+            {% else %}<span class="pill">{{ t.profile_s_one }}</span>{% endif %}
+          </td>
           <td>
             <form method="post" action="/profile/sessions/{{ s.id }}/revoke" class="inline">
               <input type="hidden" name="csrf" value="{{ csrf }}">
-              <button class="danger small" type="submit">Chiudi</button>
+              <button class="danger small" type="submit">{{ t.profile_s_close }}</button>
             </form>
           </td>
         </tr>
@@ -111,12 +108,9 @@
   <div class="actions">
     <form method="post" action="/logout/all" class="inline">
       <input type="hidden" name="csrf" value="{{ csrf }}">
-      <button class="danger" type="submit">Chiudi tutte, anche questa</button>
+      <button class="danger" type="submit">{{ t.profile_s_close_all }}</button>
     </form>
   </div>
-  <p class="note" style="margin-bottom:0">
-    Questa lista è il motivo per cui Borant ID esiste: fino a oggi nessuna delle
-    app sapeva dirti quali sessioni fossero aperte, né chiuderne una.
-  </p>
+  <p class="note" style="margin-bottom:0">{{ t.profile_s_note }}</p>
 </div>
 {% endblock %}

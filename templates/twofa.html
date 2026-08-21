@@ -1,12 +1,9 @@
 {% extends "base.html" %}
-{% block title %}Secondo fattore — {{ site_name }}{% endblock %}
+{% block title %}{{ t.twofa_title }} — {{ site_name }}{% endblock %}
 {% block body %}
 <div class="narrow">
-  <h1>Secondo fattore</h1>
-  <p class="sub">
-    Questa destinazione chiede una verifica in più. Non stai rifacendo il
-    login: la sessione che hai già viene elevata.
-  </p>
+  <h1>{{ t.twofa_title }}</h1>
+  <p class="sub">{{ t.twofa_sub }}</p>
 
   {% if error %}<div class="error">{{ error }}</div>{% endif %}
 
@@ -14,16 +11,13 @@
     <form method="post" action="/2fa">
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <input type="hidden" name="rd" value="{{ rd }}">
-      <label for="code">Codice dell'app di autenticazione</label>
+      <label for="code">{{ t.twofa_code }}</label>
       <input id="code" name="code" class="mono" inputmode="numeric"
              autocomplete="one-time-code" autofocus required>
       <div class="actions">
-        <button type="submit">Verifica</button>
+        <button type="submit">{{ t.twofa_verify }}</button>
       </div>
-      <p class="note" style="margin-bottom:0">
-        Puoi usare anche uno dei codici di backup, nel formato
-        <code>abcd-1234</code>.
-      </p>
+      <p class="note" style="margin-bottom:0">{{ t.twofa_backup_note | safe }}</p>
     </form>
   </div>
 </div>

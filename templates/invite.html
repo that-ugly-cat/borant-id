@@ -1,32 +1,28 @@
 {% extends "base.html" %}
-{% block title %}Attiva il tuo accesso — {{ site_name }}{% endblock %}
+{% block title %}{{ t.invite_title }} — {{ site_name }}{% endblock %}
 {% block body %}
 <div class="narrow">
-  <h1>Attiva il tuo accesso</h1>
-  <p class="sub">Invito per <strong>{{ tok.email }}</strong>.</p>
+  <h1>{{ t.invite_title }}</h1>
+  <p class="sub">{{ t.invite_for }} <strong>{{ tok.email }}</strong>.</p>
 
   {% if error %}<div class="error">{{ error }}</div>{% endif %}
 
   <div class="card">
     <form method="post" action="/invite/{{ raw }}">
-      <label for="name">Nome</label>
+      <label for="name">{{ t.invite_name }}</label>
       <input id="name" name="name" type="text" value="{{ data.name or '' }}" autofocus>
-      <label for="password">Password (almeno 10 caratteri)</label>
+      <label for="password">{{ t.invite_pw }}</label>
       <input id="password" name="password" type="password" autocomplete="new-password" required>
-      <label for="password2">Ripeti la password</label>
+      <label for="password2">{{ t.invite_pw2 }}</label>
       <input id="password2" name="password2" type="password" autocomplete="new-password" required>
       <div class="actions">
-        <button type="submit">Attiva</button>
+        <button type="submit">{{ t.invite_activate }}</button>
       </div>
     </form>
   </div>
 
   {% if orcid_ready %}
-    <p class="note">
-      Potrai collegare il tuo ORCID subito dopo, dal profilo. Il collegamento
-      avviene solo da una sessione già autenticata: mai per corrispondenza
-      automatica di email.
-    </p>
+    <p class="note">{{ t.invite_orcid_note }}</p>
   {% endif %}
 </div>
 {% endblock %}

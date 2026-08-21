@@ -31,6 +31,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session as DbSession
 
 import auth
+import locales
 import mailer
 import orcid
 import settings
@@ -150,6 +151,19 @@ def safe_rd(db: DbSession, rd: str) -> str:
     return ""
 
 
+def lang_of(request: Request) -> str:
+    """Cookie, poi Accept-Language, poi italiano. La scelta esplicita vince
+    sempre sull'intestazione del browser."""
+    cookie = request.cookies.get(locales.COOKIE)
+    if cookie:
+        return locales.normalize(cookie)
+    return locales.from_accept_language(request.headers.get("accept-language"))
+
+
+def tr(request: Request) -> dict[str, str]:
+    return locales.get_t(lang_of(request))
+
+
 def render(request: Request, name: str, ctx: dict) -> HTMLResponse:
     ctx.setdefault("site_name", "Borant ID")
     return templates.TemplateResponse(request, name, ctx)
@@ -157,10 +171,15 @@ def render(request: Request, name: str, ctx: dict) -> HTMLResponse:
 
 def page(request: Request, db: DbSession, name: str, sess, user,
          **ctx) -> HTMLResponse:
+    lang = lang_of(request)
     return render(request, name, {
         "user": user, "sess": sess, "csrf": csrf_for(sess),
         "site_name": settings.get(db, "site_name"),
         "orcid_ready": orcid.configured(),
+        "t": locales.get_t(lang),
+        "lang": lang,
+        "languages": locales.LANGUAGE_NAMES,
+        "supported": locales.SUPPORTED,
         **ctx,
     })
 
@@ -238,6 +257,24 @@ def healthz():
     return {"ok": True}
 
 
+@app.get("/lang/{code}")
+def set_lang(code: str, request: Request):
+    """Sceglie la lingua e torna da dove si veniva. Il `rd` implicito è il
+    Referer, che qui è innocuo perché serve solo a non perdere la pagina: se
+    punta fuori dal gate lo si butta."""
+    chosen = locales.normalize(code)
+    back = request.headers.get("referer", "") or "/"
+    if "://" in back:
+        host = urlparse(back).netloc.split(":")[0].lower()
+        if host != (request.url.hostname or "").lower():
+            back = "/"
+    r = RedirectResponse(back, status_code=303)
+    r.set_cookie(locales.COOKIE, chosen, max_age=365 * 24 * 3600,
+                 httponly=False, secure=auth.COOKIE_SECURE, samesite="lax",
+                 path="/")
+    return r
+
+
 # ── Home ──────────────────────────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
@@ -275,12 +312,13 @@ def login_submit(request: Request, email: str = Form(""),
     ip = client_ip(request)
     rd = safe_rd(db, rd)
     email = email.strip().lower()
+    t = tr(request)
 
     if not auth.login_limiter.hit(f"ip:{ip}") or \
        not auth.login_limiter.hit(f"acct:{email}"):
         audit(db, "login.rate_limited", ip=ip, email=email)
-        return page(request, db, "login.html", None, None, rd=rd, error=
-                    "Troppi tentativi. Riprova fra un quarto d'ora.")
+        return page(request, db, "login.html", None, None, rd=rd,
+                    error=t["login_rate"])
 
     user = db.query(User).filter(User.email == email).first()
     if user is None or not user.is_active or \
@@ -288,7 +326,7 @@ def login_submit(request: Request, email: str = Form(""),
         audit(db, "login.failed", user=user, ip=ip, ua=user_agent(request),
               email=email)
         return page(request, db, "login.html", None, None, rd=rd,
-                    error="Email o password non validi.")
+                    error=t["login_err"])
 
     auth.login_limiter.reset(f"acct:{email}")
     token = auth.create_session(db, user, ip=ip, ua=user_agent(request))
@@ -368,13 +406,14 @@ def twofa_submit(request: Request, code: str = Form(""), rd: str = Form(""),
         return RedirectResponse("/login", status_code=303)
     rd = safe_rd(db, rd)
     ip = client_ip(request)
+    t = tr(request)
 
     if not csrf_ok(sess, csrf):
         return RedirectResponse("/2fa", status_code=303)
     if not auth.totp_limiter.hit(f"totp:{user.id}"):
         audit(db, "2fa.rate_limited", user=user, ip=ip)
         return page(request, db, "twofa.html", sess, user, rd=rd,
-                    error="Troppi tentativi. Aspetta qualche minuto.")
+                    error=t["twofa_rate"])
 
     # Enrolment in progress: the secret is not stored until a code proves the
     # authenticator actually has it.
@@ -399,7 +438,7 @@ def twofa_submit(request: Request, code: str = Form(""), rd: str = Form(""),
         return page(request, db, "twofa_enroll.html", sess, user, rd=rd,
                     secret=secret or "", otpauth=uri,
                     qr=totplib.qr_data_uri(uri), stash=stash,
-                    error="Codice non valido. Riprova.")
+                    error=t["twofa_err_retry"])
 
     secret = decrypt_or_none(user.totp_secret)
     if secret and totplib.verify(secret, code):
@@ -414,7 +453,7 @@ def twofa_submit(request: Request, code: str = Form(""), rd: str = Form(""),
 
     audit(db, "2fa.failed", user=user, ip=ip)
     return page(request, db, "twofa.html", sess, user, rd=rd,
-                error="Codice non valido.")
+                error=t["twofa_err"])
 
 
 def _issue_backup_codes(db: DbSession, user: User) -> list[str]:
@@ -470,18 +509,18 @@ def orcid_callback(request: Request, code: str = "", state: str = "",
                    borant_session: str | None = Cookie(default=None),
                    db: DbSession = Depends(get_db)):
     ip = client_ip(request)
+    t = tr(request)
     st = orcid.read_state(borant_orcid_state, state)
     if st is None or not code:
         return page(request, db, "message.html", None, None,
-                    title="Accesso ORCID non riuscito",
-                    body="La richiesta è scaduta o non corrisponde. Riprova.",
+                    title=t["orcid_fail_title"], body=t["orcid_fail_body"],
                     back="/login")
 
     data, err = orcid.exchange(code, _redirect_uri(db))
     if data is None:
         audit(db, "orcid.exchange_failed", ip=ip, error=err)
         return page(request, db, "message.html", None, None,
-                    title="Accesso ORCID non riuscito", body=err, back="/login")
+                    title=t["orcid_fail_title"], body=err, back="/login")
 
     orcid_id = data["orcid"]
     sess, user = current(db, borant_session)
@@ -493,10 +532,8 @@ def orcid_callback(request: Request, code: str = "", state: str = "",
                                       User.id != user.id).first()
         if taken is not None:
             return page(request, db, "message.html", sess, user,
-                        title="ORCID già collegato",
-                        body="Quell'ORCID iD è già associato a un altro "
-                             "account. Scrivi a un amministratore.",
-                        back="/profile")
+                        title=t["orcid_taken_title"],
+                        body=t["orcid_taken_body"], back="/profile")
         user.orcid = orcid_id
         user.orcid_linked_at = utcnow()
         if not user.name and data.get("name"):
@@ -514,10 +551,8 @@ def orcid_callback(request: Request, code: str = "", state: str = "",
     if found is None or not found.is_active:
         audit(db, "orcid.login_unknown", ip=ip, orcid=orcid_id)
         return page(request, db, "message.html", None, None,
-                    title="Nessun account collegato",
-                    body=f"L'ORCID iD {orcid_id} non è collegato a nessun "
-                         "account qui. Chiedi un invito, e potrai accettarlo "
-                         "proprio con ORCID.",
+                    title=t["orcid_unknown_title"],
+                    body=f"{orcid_id} — {t['orcid_unknown_body']}",
                     back="/login")
 
     token = auth.create_session(db, found, ip=ip, ua=user_agent(request))
@@ -549,6 +584,7 @@ def forbidden_ask(request: Request, host: str = Form(""), csrf: str = Form(""),
                   borant_session: str | None = Cookie(default=None),
                   db: DbSession = Depends(get_db)):
     sess, user = current(db, borant_session)
+    t = tr(request)
     if user is None or not csrf_ok(sess, csrf):
         return RedirectResponse("/login", status_code=303)
     audit(db, "access.requested", user=user, ip=client_ip(request), host=host)
@@ -561,21 +597,21 @@ def forbidden_ask(request: Request, host: str = Form(""), csrf: str = Form(""),
                         f"{host}.\n\nConcedilo da "
                         f"{settings.base_url(db)}/admin/users\n")
     return page(request, db, "message.html", sess, user,
-                title="Richiesta inviata",
-                body="Gli amministratori sono stati avvisati.", back="/")
+                title=t["forbidden_sent_title"],
+                body=t["forbidden_sent_body"], back="/")
 
 
 # ── Invites ───────────────────────────────────────────────────────────────────
 
 @app.get("/invite/{raw}", response_class=HTMLResponse)
 def invite_form(raw: str, request: Request, db: DbSession = Depends(get_db)):
+    t = tr(request)
     tok = db.query(Token).filter(Token.token_hash == hash_token(raw),
                                  Token.kind == "invite").first()
     if tok is None or not tok.is_live():
         return page(request, db, "message.html", None, None,
-                    title="Invito non valido",
-                    body="Il link è scaduto o è già stato usato. "
-                         "Chiedine un altro.", back="/login")
+                    title=t["invite_bad_title"], body=t["invite_bad_body"],
+                    back="/login")
     return page(request, db, "invite.html", None, None, raw=raw, tok=tok,
                 data=tok.data(), error="")
 
@@ -584,20 +620,18 @@ def invite_form(raw: str, request: Request, db: DbSession = Depends(get_db)):
 def invite_accept(raw: str, request: Request, name: str = Form(""),
                   password: str = Form(""), password2: str = Form(""),
                   db: DbSession = Depends(get_db)):
+    t = tr(request)
     tok = db.query(Token).filter(Token.token_hash == hash_token(raw),
                                  Token.kind == "invite").first()
     if tok is None or not tok.is_live():
         return page(request, db, "message.html", None, None,
-                    title="Invito non valido",
-                    body="Il link è scaduto o è già stato usato.",
+                    title=t["invite_bad_title"], body=t["invite_bad_body"],
                     back="/login")
 
     data = tok.data()
     if len(password) < 10 or password != password2:
         return page(request, db, "invite.html", None, None, raw=raw, tok=tok,
-                    data=data,
-                    error="La password deve essere di almeno 10 caratteri e "
-                          "le due copie devono coincidere.")
+                    data=data, error=t["invite_err"])
 
     user = db.query(User).filter(User.email == tok.email).first()
     if user is None:
@@ -660,29 +694,29 @@ def reset_request(request: Request, email: str = Form(""),
 
 @app.get("/reset/{raw}", response_class=HTMLResponse)
 def reset_form(raw: str, request: Request, db: DbSession = Depends(get_db)):
+    t = tr(request)
     tok = db.query(Token).filter(Token.token_hash == hash_token(raw),
                                  Token.kind == "reset").first()
     if tok is None or not tok.is_live():
         return page(request, db, "message.html", None, None,
-                    title="Link scaduto",
-                    body="Il link di reimpostazione non è più valido. "
-                         "Chiedine un altro.", back="/reset")
+                    title=t["reset_expired_title"],
+                    body=t["reset_expired_body"], back="/reset")
     return page(request, db, "reset.html", None, None, raw=raw, error="")
 
 
 @app.post("/reset/{raw}", response_class=HTMLResponse)
 def reset_submit(raw: str, request: Request, password: str = Form(""),
                  password2: str = Form(""), db: DbSession = Depends(get_db)):
+    t = tr(request)
     tok = db.query(Token).filter(Token.token_hash == hash_token(raw),
                                  Token.kind == "reset").first()
     if tok is None or not tok.is_live():
         return page(request, db, "message.html", None, None,
-                    title="Link scaduto", body="Chiedine un altro.",
-                    back="/reset")
+                    title=t["reset_expired_title"],
+                    body=t["reset_expired_body"], back="/reset")
     if len(password) < 10 or password != password2:
         return page(request, db, "reset.html", None, None, raw=raw,
-                    error="Almeno 10 caratteri, e le due copie devono "
-                          "coincidere.")
+                    error=t["reset_err"])
     user = db.get(User, tok.user_id)
     user.password_hash = auth.hash_password(password)
     tok.used_at = utcnow()
@@ -694,9 +728,8 @@ def reset_submit(raw: str, request: Request, password: str = Form(""),
             db, user.email, "Password cambiata",
             f"Sono state chiuse {n} sessioni aperte.")
     return page(request, db, "message.html", None, None,
-                title="Password aggiornata",
-                body="Tutte le sessioni aperte sono state chiuse. "
-                     "Puoi accedere con la password nuova.", back="/login")
+                title=t["reset_done_title"], body=t["reset_done_body"],
+                back="/login")
 
 
 # ── Profile ───────────────────────────────────────────────────────────────────
@@ -713,14 +746,13 @@ def profile(request: Request, codes: int = 0,
     unused = db.query(BackupCode).filter(BackupCode.user_id == user.id,
                                          BackupCode.used_at.is_(None)).count()
     err = request.query_params.get("err", "")
+    t = tr(request)
     return page(request, db, "profile.html", sess, user, live=live,
                 unused_codes=unused,
                 orcid_url=orcid.profile_url(user.orcid) if user.orcid else "",
-                error={"pw": "Password attuale non corretta.",
-                       "short": "Almeno 10 caratteri, e le due copie devono "
-                                "coincidere."}.get(err, ""),
-                msg=("Autenticazione a due fattori attiva. Genera i codici di "
-                     "backup e mettili al sicuro." if codes else ""))
+                error={"pw": t["profile_pw_err"],
+                       "short": t["profile_pw_short"]}.get(err, ""),
+                msg=(t["profile_2fa_msg"] if codes else ""))
 
 
 @app.post("/profile/password", response_class=HTMLResponse)

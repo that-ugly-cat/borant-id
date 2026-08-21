@@ -1,29 +1,38 @@
 <!doctype html>
-<html lang="it">
+<html lang="{{ lang }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ site_name }}{% endblock %}</title>
+  <link rel="icon" href="/static/borant-logo.png">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 <header>
-  <a class="brand" href="/">{{ site_name }}</a>
-  <nav>
+  <div class="nav-inner">
+    <a class="nav-logo" href="/">
+      <img src="/static/borant-logo.png" alt="Borant">
+      <span class="nav-logo-text">
+        {{ site_name }}
+        <span class="nav-logo-sub">{{ t.tagline }}</span>
+      </span>
+    </a>
     {% if user %}
-      <a href="/profile">Profilo</a>
-      {% if user.is_admin %}
-        <a href="/admin/users">Utenti</a>
-        <a href="/admin/apps">App</a>
-        <a href="/admin/sessions">Sessioni</a>
-        <a href="/admin/audit">Log</a>
-        <a href="/admin/config">Configurazione</a>
-      {% endif %}
-      <form method="post" action="/logout" class="inline">
-        <button class="link">Esci</button>
-      </form>
+      <nav>
+        <a href="/profile">{{ t.nav_profile }}</a>
+        {% if user.is_admin %}
+          <a href="/admin/users">{{ t.nav_users }}</a>
+          <a href="/admin/apps">{{ t.nav_apps }}</a>
+          <a href="/admin/sessions">{{ t.nav_sessions }}</a>
+          <a href="/admin/audit">{{ t.nav_log }}</a>
+          <a href="/admin/config">{{ t.nav_config }}</a>
+        {% endif %}
+        <form method="post" action="/logout" class="inline">
+          <button class="link" type="submit">{{ t.nav_logout }}</button>
+        </form>
+      </nav>
     {% endif %}
-  </nav>
+  </div>
 </header>
 
 <main>
@@ -31,8 +40,15 @@
 </main>
 
 <footer>
-  <span>{{ site_name }}</span>
-  {% if user %}<span>{{ user.display }}</span>{% endif %}
+  <div class="footer-inner">
+    <span>{{ site_name }}{% if user %} · {{ user.display }}{% endif %}</span>
+    <span class="lang">
+      {% for code in supported %}
+        <a href="/lang/{{ code }}" class="{{ 'on' if code == lang else '' }}"
+           hreflang="{{ code }}">{{ languages[code] }}</a>
+      {% endfor %}
+    </span>
+  </div>
 </footer>
 </body>
 </html>
