@@ -120,6 +120,16 @@ export COOKIE_DOMAIN= COOKIE_SECURE=0     # niente dominio, http locale
 `two_factor` dove la SPEC li chiede. **Registrare non è gatare**: il gate lo
 accende un blocco Caddy, un'app alla volta.
 
+Sui `two_factor` conviene sapere come è andata finora: ne erano seminati sei, e
+i primi due arrivati al momento di accenderli sono stati **tolti entrambi**.
+PaperTrail perché quel pannello crea utenti e workspace e non apre dati che il
+resto dell'app non apra già; Contrarian perché le stesse credenziali si
+impostano anche da una pagina a un fattore, e un gradino su una porta sola non
+è protezione. Ne restano quattro, per app non ancora gated: vale la pena
+rifare la domanda una per una invece di ereditarla dal seed. E toglierne uno
+significa toglierlo **in due posti** — la riga viva e `seed.py` — o un
+riseeding lo rimette.
+
 ### Provare /verify a mano
 
 ```bash
