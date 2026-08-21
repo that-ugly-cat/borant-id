@@ -262,6 +262,35 @@ class Token(Base):
         return self.used_at is None and aware(self.expires_at) > utcnow()
 
 
+class AccessRequest(Base):
+    """«Vorrei entrare in questa app». Chiesto dall'utente, deciso dall'admin.
+
+    È la seconda metà della registrazione aperta. Un account nuovo nasce con
+    zero grant — quindi non raggiunge niente, ed è per questo che aprire le
+    registrazioni non apre nulla — ma senza un modo di chiedere l'accesso
+    resterebbe un vicolo cieco, e la richiesta finirebbe in una mail che si
+    perde. Qui invece ha uno stato, e l'admin la vede in una lista.
+
+    Il ruolo si sceglie **al momento dell'approvazione**, non della richiesta:
+    è lì che si sa cosa concedere, ed è la difesa contro il provisioning
+    automatico in un'app che spende (SPEC.md §18).
+    """
+    __tablename__ = "access_requests"
+    __table_args__ = (UniqueConstraint("user_id", "app_id", "status"),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    app_id = Column(Integer, ForeignKey("apps.id"), nullable=False)
+    message = Column(Text, nullable=False, default="")
+    status = Column(String, nullable=False, default="pending")  # pending|approved|denied
+    created_at = Column(DateTime, nullable=False, default=utcnow)
+    decided_at = Column(DateTime, nullable=True)
+    decided_by = Column(String, nullable=False, default="")
+
+    user = relationship("User")
+    app = relationship("App")
+
+
 class Audit(Base):
     __tablename__ = "audit"
 

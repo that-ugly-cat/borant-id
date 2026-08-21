@@ -11,6 +11,7 @@ Every write invalidates the caches in auth.py. Forgetting that is how a revoked
 grant keeps working for thirty seconds.
 """
 import json
+import secrets
 from datetime import timedelta
 
 from fastapi import APIRouter, Cookie, Depends, Form, Request
@@ -21,8 +22,8 @@ import auth
 import mailer
 import settings
 from models import (
-    ONE_FACTOR, TWO_FACTOR, App, Audit, Grant, Policy, Session, Token, User,
-    audit, get_db, new_token, utcnow,
+    ONE_FACTOR, TWO_FACTOR, AccessRequest, App, Audit, Grant, Policy,
+    Session, Token, User, audit, get_db, new_token, utcnow,
 )
 
 router = APIRouter(prefix="/admin")
@@ -70,8 +71,12 @@ def users(request: Request, borant_session: str | None = Cookie(default=None),
                  .filter(Token.kind == "invite", Token.used_at.is_(None))
                  .order_by(Token.created_at.desc()).all())
     apps = db.query(App).order_by(App.name).all()
+    requests_pending = (db.query(AccessRequest)
+                          .filter(AccessRequest.status == "pending")
+                          .order_by(AccessRequest.created_at).all())
     return _page(request, db, "admin_users.html", sess, me, rows=rows,
                  pending=[t for t in pending if t.is_live()], apps=apps,
+                 requests=requests_pending,
                  invite_link=request.query_params.get("link", ""),
                  mail_error=request.query_params.get("mailerr", ""))
 
@@ -432,6 +437,7 @@ def config(request: Request, borant_session: str | None = Cookie(default=None),
     return _page(request, db, "admin_config.html", sess, me, cfg=cfg,
                  has_password=bool(settings.get(db, "smtp_password_enc")),
                  site_name=settings.get(db, "site_name"),
+                 registration_domains=settings.get(db, "registration_domains"),
                  base=settings.base_url(db),
                  msg=request.query_params.get("msg", ""),
                  error=request.query_params.get("err", ""))
@@ -447,6 +453,8 @@ def config_save(request: Request, smtp_enabled: str = Form(""),
                 smtp_from_name: str = Form("Borant ID"),
                 site_name: str = Form("Borant ID"),
                 public_base_url: str = Form(""),
+                registration_open: str = Form(""),
+                registration_domains: str = Form(""),
                 csrf: str = Form(""),
                 borant_session: str | None = Cookie(default=None),
                 db: DbSession = Depends(get_db)):
@@ -468,6 +476,10 @@ def config_save(request: Request, smtp_enabled: str = Form(""),
         "site_name": site_name.strip() or "Borant ID",
         "public_base_url": (public_base_url.strip().rstrip("/") or
                             settings.base_url(db)),
+        "registration_open": "1" if registration_open else "0",
+        "registration_domains": ", ".join(
+            d.strip().lstrip("@") for d in registration_domains.split(",")
+            if d.strip()),
     })
     if clear_password:
         settings.clear_smtp_password(db)
@@ -502,3 +514,165 @@ def config_test(request: Request, to: str = Form(""), csrf: str = Form(""),
             status_code=303)
     return RedirectResponse(f"/admin/config?err={quote(err[:300])}",
                             status_code=303)
+
+
+# ── Richieste di accesso ──────────────────────────────────────────────────────
+#
+# La seconda metà della registrazione aperta. Il ruolo si sceglie **qui**, al
+# momento di approvare, non quando la richiesta viene fatta: è l'unico momento
+# in cui si sa cosa concedere, ed è la difesa contro il concedere per inerzia
+# un ruolo che spende (SPEC.md §18).
+
+@router.post("/requests/{rid}/approve")
+def request_approve(rid: int, request: Request, level_hint: str = Form(""),
+                    csrf: str = Form(""),
+                    borant_session: str | None = Cookie(default=None),
+                    db: DbSession = Depends(get_db)):
+    sess, me, redirect = _guard(db, borant_session)
+    if redirect:
+        return redirect
+    req = db.get(AccessRequest, rid)
+    if req is None or not _csrf_ok(sess, csrf) or req.status != "pending":
+        return RedirectResponse("/admin/users", status_code=303)
+
+    if not db.query(Grant).filter(Grant.user_id == req.user_id,
+                                  Grant.app_id == req.app_id).first():
+        db.add(Grant(user_id=req.user_id, app_id=req.app_id,
+                     level_hint=level_hint.strip(), created_by=me.display))
+    req.status = "approved"
+    req.decided_at = utcnow()
+    req.decided_by = me.display
+    db.commit()
+    auth.invalidate_registry()
+    audit(db, "access.approved", user=me, ip=_ip(request),
+          target=req.user.email if req.user else "", app=req.app.slug,
+          hint=level_hint)
+    if req.user and req.user.email:
+        mailer.send(db, req.user.email,
+                    f"Accesso concesso: {req.app.name}",
+                    f"Puoi ora entrare in {req.app.name} "
+                    f"(https://{req.app.host}/).\n")
+    return RedirectResponse("/admin/users", status_code=303)
+
+
+@router.post("/requests/{rid}/deny")
+def request_deny(rid: int, request: Request, csrf: str = Form(""),
+                 borant_session: str | None = Cookie(default=None),
+                 db: DbSession = Depends(get_db)):
+    sess, me, redirect = _guard(db, borant_session)
+    if redirect:
+        return redirect
+    req = db.get(AccessRequest, rid)
+    if req is None or not _csrf_ok(sess, csrf) or req.status != "pending":
+        return RedirectResponse("/admin/users", status_code=303)
+    req.status = "denied"
+    req.decided_at = utcnow()
+    req.decided_by = me.display
+    db.commit()
+    audit(db, "access.denied", user=me, ip=_ip(request),
+          target=req.user.email if req.user else "", app=req.app.slug)
+    return RedirectResponse("/admin/users", status_code=303)
+
+
+# ── Creazione in blocco ───────────────────────────────────────────────────────
+
+def _parse_people(raw: str) -> list[tuple[str, str]]:
+    """Una persona per riga: `email` oppure `email, Nome Cognome`.
+
+    Tollera il punto e virgola e il tab perché è così che escono gli elenchi
+    incollati da un foglio, e chiedere a qualcuno di ripulire trenta righe a
+    mano è il modo migliore di far usare un'altra strada."""
+    people, seen = [], set()
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        for sep in (";", "\t"):
+            line = line.replace(sep, ",")
+        parts = [p.strip() for p in line.split(",")]
+        email = parts[0].lower()
+        if "@" not in email or email in seen:
+            continue
+        seen.add(email)
+        people.append((email, " ".join(parts[1:]).strip()))
+    return people
+
+
+@router.post("/users/batch", response_class=HTMLResponse)
+async def users_batch(request: Request, people: str = Form(""),
+                      mode: str = Form("invite"), csrf: str = Form(""),
+                      borant_session: str | None = Cookie(default=None),
+                      db: DbSession = Depends(get_db)):
+    """Trenta studenti in un colpo solo, con i grant già assegnati.
+
+    Due modi. `invite` manda un link e lascia scegliere la password a loro:
+    più sicuro, e verifica l'indirizzo per costruzione. `create` crea l'account
+    con una password generata, che compare **una volta sola** in una tabella da
+    copiare — serve per l'aula dove la posta istituzionale non arriva o non si
+    può aspettare.
+    """
+    sess, me, redirect = _guard(db, borant_session)
+    if redirect:
+        return redirect
+    if not _csrf_ok(sess, csrf):
+        return RedirectResponse("/admin/users", status_code=303)
+
+    form = await request.form()
+    grants = {}
+    for key in form.keys():
+        if key.startswith("app_"):
+            app_id = key[len("app_"):]
+            grants[app_id] = (form.get(f"hint_{app_id}") or "").strip()
+
+    rows = []
+    for email, name in _parse_people(people):
+        existing = db.query(User).filter(User.email == email).first()
+        if existing is not None:
+            # Non si tocca chi c'è già: si aggiungono solo i grant mancanti,
+            # perché un batch rilanciato per sbaglio non deve azzerare nulla.
+            for app_id, hint in grants.items():
+                if not db.query(Grant).filter(
+                        Grant.user_id == existing.id,
+                        Grant.app_id == int(app_id)).first():
+                    db.add(Grant(user_id=existing.id, app_id=int(app_id),
+                                 level_hint=hint, created_by=me.display))
+            db.commit()
+            rows.append({"email": email, "esito": "già presente, grant aggiornati",
+                         "extra": ""})
+            continue
+
+        if mode == "create":
+            password = secrets.token_urlsafe(12)
+            # Verificata per asserzione dell'admin: nessuna mail parte in
+            # questa modalità, quindi senza questo l'utente resterebbe in un
+            # vicolo cieco — non può chiedere altre app e non ha un link da
+            # cliccare. Nel modo `invite` la verifica arriva dall'accettazione.
+            u = User(email=email, name=name or email.split("@")[0],
+                     password_hash=auth.hash_password(password),
+                     email_verified_at=utcnow(), is_active=True)
+            db.add(u)
+            db.commit()
+            for app_id, hint in grants.items():
+                db.add(Grant(user_id=u.id, app_id=int(app_id),
+                             level_hint=hint, created_by=me.display))
+            db.commit()
+            rows.append({"email": email, "esito": "account creato",
+                         "extra": password})
+        else:
+            plain, digest = new_token()
+            db.add(Token(kind="invite", token_hash=digest, email=email,
+                         payload=json.dumps({"name": name, "grants": grants}),
+                         expires_at=utcnow() + timedelta(days=INVITE_DAYS),
+                         created_by=me.display))
+            db.commit()
+            link = f"{settings.base_url(db)}/invite/{plain}"
+            ok, err = mailer.send_invite(db, email, name, link)
+            rows.append({"email": email,
+                         "esito": "invito inviato" if ok else f"mail non partita: {err[:60]}",
+                         "extra": "" if ok else link})
+
+    auth.invalidate_registry()
+    audit(db, "users.batch", user=me, ip=_ip(request), mode=mode,
+          count=len(rows), apps=list(grants))
+    return _page(request, db, "admin_batch.html", sess, me, rows=rows,
+                 mode=mode)

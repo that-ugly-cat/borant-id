@@ -3,6 +3,10 @@
 <h1>{{ t.home_hello }} {{ user.display }}</h1>
 <p class="sub">{{ t.home_sub }}</p>
 
+{% if not verified and user.email %}
+  <div class="flash flash-error">{{ t.home_unverified }}</div>
+{% endif %}
+
 {% if apps %}
   <div class="card">
     <div class="table-wrap">
@@ -23,6 +27,39 @@
 {% else %}
   <div class="card">
     <p style="margin:0">{{ t.home_empty }}</p>
+  </div>
+{% endif %}
+
+{% if others %}
+  <h2>{{ t.home_others }}</h2>
+  <p class="sub">{{ t.home_others_sub }}</p>
+  <div class="card">
+    <div class="table-wrap">
+      <table class="table">
+        {% for a in others %}
+          <tr>
+            <td style="width:13rem"><strong>{{ a.name }}</strong><br>
+              <span class="muted mono">{{ a.host }}</span></td>
+            <td>
+              {% if a.id in pending %}
+                <span class="badge badge-warn">{{ t.home_pending }}</span>
+              {% elif verified %}
+                <form method="post" action="/request-access" class="row">
+                  <input type="hidden" name="csrf" value="{{ csrf }}">
+                  <input type="hidden" name="app_id" value="{{ a.id }}">
+                  <div><input type="text" name="message" placeholder="{{ t.home_why }}"></div>
+                  <span class="fixed">
+                    <button class="btn btn-small" type="submit">{{ t.home_request }}</button>
+                  </span>
+                </form>
+              {% else %}
+                <span class="muted small">{{ t.req_unverified_title }}</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
   </div>
 {% endif %}
 

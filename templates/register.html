@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ t.register_title }} — {{ site_name }}{% endblock %}
+{% block container_class %} narrow{% endblock %}
+{% block body %}
+<h1>{{ t.register_title }}</h1>
+<p class="sub">{{ t.register_sub }}</p>
+
+{% if error %}<div class="flash flash-error">{{ error }}</div>{% endif %}
+
+<div class="card">
+  <form method="post" action="/register">
+    <label for="name">{{ t.invite_name }}</label>
+    <input id="name" name="name" type="text" autofocus>
+    <label for="email">{{ t.email }}</label>
+    <input id="email" name="email" type="email" autocomplete="username" required>
+    {% if domains %}
+      <p class="note">{{ t.register_domains }} <span class="mono">{{ domains }}</span></p>
+    {% endif %}
+    <label for="password">{{ t.invite_pw }}</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" required>
+    <label for="password2">{{ t.invite_pw2 }}</label>
+    <input id="password2" name="password2" type="password" autocomplete="new-password" required>
+    <div class="actions">
+      <button class="btn-primary" type="submit">{{ t.register_btn }}</button>
+      <a class="muted" href="/login">{{ t.register_have }}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -29,6 +29,21 @@ DEFAULTS = {
     **SMTP_DEFAULTS,
     "site_name": "Borant ID",
     "public_base_url": "https://id.borant.eu",
+
+    # Registrazione aperta. Spenta di default: accenderla è una decisione, non
+    # uno stato di fatto. Aprirla NON apre nessuna app — un account nuovo nasce
+    # con zero grant e non raggiunge niente — ma riempie la tabella utenti di
+    # chiunque passi, quindi va accesa sapendo perché (SPEC.md §18).
+    #
+    # Governa anche ORCID: con le registrazioni aperte, «entra con ORCID» crea
+    # l'account se non esiste. Tenere le due porte con regole diverse
+    # significherebbe spiegare a qualcuno perché una funziona e l'altra no.
+    "registration_open": "0",
+
+    # Domini ammessi alla registrazione, separati da virgola. Vuoto = tutti.
+    # È un filtro grossolano, non un controllo d'identità: serve a tenere fuori
+    # il rumore, non gli attaccanti.
+    "registration_domains": "",
 }
 
 

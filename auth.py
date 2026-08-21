@@ -428,6 +428,11 @@ class RateLimiter:
 login_limiter = RateLimiter(limit=10, window=900)
 totp_limiter = RateLimiter(limit=10, window=300)
 
+# Registrazione: più stretto del login, perché qui il costo di un abuso non è
+# entrare ma riempire la tabella utenti, e nessuno legittimo si registra cinque
+# volte in un'ora.
+register_limiter = RateLimiter(limit=5, window=3600)
+
 
 # ── Cookie helpers ────────────────────────────────────────────────────────────
 

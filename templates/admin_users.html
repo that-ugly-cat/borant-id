@@ -12,6 +12,57 @@
   </div>
 {% endif %}
 
+{% if requests %}
+  <h2>Richieste di accesso ({{ requests | length }})</h2>
+  <div class="card card-danger">
+    <div class="table-wrap">
+      <table class="table">
+        <tr><th>Chi</th><th>App</th><th>Perché</th><th>Quando</th><th></th></tr>
+        {% for r in requests %}
+          <tr>
+            <td>{{ r.user.display }}<br><span class="muted">{{ r.user.email }}</span>
+              {% if not r.user.email_verified_at %}
+                <br><span class="badge badge-warn">email non confermata</span>
+              {% endif %}
+            </td>
+            <td>{{ r.app.name }}<br><span class="muted mono">{{ r.app.host }}</span></td>
+            <td class="small">{{ r.message or '—' }}</td>
+            <td class="muted small">{{ r.created_at.strftime('%d/%m %H:%M') }}</td>
+            <td>
+              {% set rl = r.app.role_list() %}
+              <form method="post" action="/admin/requests/{{ r.id }}/approve" class="row">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                {% if rl %}
+                  <div>
+                    <input type="text" name="level_hint" list="req-roles-{{ r.app.id }}"
+                           placeholder="{{ rl | join(' · ') }}">
+                    <datalist id="req-roles-{{ r.app.id }}">
+                      {% for x in rl %}<option value="{{ x }}"></option>{% endfor %}
+                    </datalist>
+                  </div>
+                {% endif %}
+                <span class="fixed">
+                  <button class="btn-primary btn-small" type="submit">Approva</button>
+                </span>
+              </form>
+              <form method="post" action="/admin/requests/{{ r.id }}/deny" class="inline">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                <button class="btn btn-danger btn-small" type="submit">Rifiuta</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+    <p class="note" style="margin-bottom:0">
+      Il ruolo si sceglie <strong>qui</strong>, approvando, non quando la
+      richiesta viene fatta: è l'unico momento in cui si sa cosa concedere. Per
+      un'app che spende — ArguMap paga le chiamate LLM dalla chiave del server —
+      concedere per inerzia un ruolo che sblocca la pipeline apre un rubinetto.
+    </p>
+  </div>
+{% endif %}
+
 <h2>Invita</h2>
 <div class="card">
   <form method="post" action="/admin/users/invite">
@@ -60,6 +111,60 @@
       </table>
     </div>
     <div class="actions"><button class="btn-primary" type="submit">Manda l'invito</button></div>
+  </form>
+</div>
+
+<h2>Creazione in blocco</h2>
+<div class="card">
+  <form method="post" action="/admin/users/batch">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="people">Una persona per riga — <span class="mono">email</span>
+      oppure <span class="mono">email, Nome Cognome</span></label>
+    <textarea id="people" name="people" rows="8"
+              placeholder="anna.rossi@uzh.ch, Anna Rossi&#10;luca.bianchi@uzh.ch, Luca Bianchi"></textarea>
+    <p class="note">
+      Accetta anche punto e virgola e tabulazioni, perché è così che escono gli
+      elenchi incollati da un foglio. Le righe vuote e quelle che iniziano con
+      <span class="mono">#</span> si saltano, i doppioni pure. Chi ha già un
+      account non viene toccato: gli si aggiungono solo i grant mancanti, così
+      un batch rilanciato per sbaglio non azzera niente.
+    </p>
+
+    <h3>Accesso alle app</h3>
+    <div class="table-wrap">
+      <table class="table">
+        <tr><th></th><th>App</th><th>Ruolo suggerito</th></tr>
+        {% for a in apps %}
+          {% set rl = a.role_list() %}
+          <tr>
+            <td><input type="checkbox" name="app_{{ a.id }}" value="1"></td>
+            <td>{{ a.name }} <span class="muted mono">{{ a.host }}</span></td>
+            <td>
+              {% if rl %}
+                <input type="text" name="hint_{{ a.id }}" list="batch-roles-{{ a.id }}"
+                       placeholder="{{ rl | join(' · ') }}">
+                <datalist id="batch-roles-{{ a.id }}">
+                  {% for x in rl %}<option value="{{ x }}"></option>{% endfor %}
+                </datalist>
+              {% else %}
+                <span class="muted small">— questa app non ha ruoli</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+
+    <h3>Come</h3>
+    <label class="check plain">
+      <input type="radio" name="mode" value="invite" checked>
+      manda un invito: scelgono loro la password, e l'indirizzo risulta verificato
+    </label>
+    <label class="check plain">
+      <input type="radio" name="mode" value="create">
+      crea subito con password generate: compaiono una volta sola, da copiare
+    </label>
+    <div class="actions"><button class="btn-primary" type="submit">Elabora</button></div>
   </form>
 </div>
 

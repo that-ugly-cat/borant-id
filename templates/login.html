@@ -23,6 +23,7 @@
       <div class="actions">
         <button class="btn-primary" type="submit">{{ t.login_enter }}</button>
         <a class="muted" href="/reset">{{ t.login_forgot }}</a>
+        {% if reg_open %}<a class="muted" href="/register">{{ t.login_register }}</a>{% endif %}
       </div>
     </form>
   </div>

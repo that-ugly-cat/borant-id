@@ -27,6 +27,23 @@
       se è sbagliato, il flusso ORCID smette di funzionare.
     </p>
 
+    <h3>Registrazione</h3>
+    <label class="check plain">
+      <input type="checkbox" name="registration_open" value="1" {% if reg_open %}checked{% endif %}>
+      registrazione aperta a chiunque
+    </label>
+    <label for="registration_domains">Domini ammessi (separati da virgola, vuoto = tutti)</label>
+    <input id="registration_domains" name="registration_domains"
+           value="{{ registration_domains }}" placeholder="uzh.ch, ethz.ch">
+    <p class="note">
+      Aprire le registrazioni <strong>non apre nessuna app</strong>: un account
+      nuovo nasce con zero grant e non raggiunge niente, quindi chi si registra
+      ottiene il diritto di <em>chiedere</em>, non di entrare. Quello che cambia
+      è che la tabella utenti si riempie di chiunque passi, e le richieste vanno
+      smaltite. Governa anche ORCID: a registrazioni aperte, «entra con ORCID»
+      crea l'account se non esiste — sempre senza grant.
+    </p>
+
     <h3>SMTP</h3>
     <label>
       <input type="checkbox" name="smtp_enabled" value="1" {% if cfg.enabled %}checked{% endif %}>

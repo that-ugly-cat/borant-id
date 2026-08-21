@@ -38,8 +38,9 @@ import settings
 import totp as totplib
 from crypto import decrypt_or_none, encrypt
 from models import (
-    ONE_FACTOR, TWO_FACTOR, App, BackupCode, Grant, Policy, Session, Token,
-    User, Audit, audit, aware, get_db, hash_token, init_db, new_token, utcnow,
+    ONE_FACTOR, TWO_FACTOR, AccessRequest, App, BackupCode, Grant, Policy,
+    Session, Token, User, Audit, audit, aware, get_db, hash_token, init_db,
+    new_token, utcnow,
 )
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -201,6 +202,7 @@ def page(request: Request, db: DbSession, name: str, sess, user,
         "orcid_ready": orcid.configured(),
         "t": locales.get_t(lang),
         "lang": lang,
+        "reg_open": settings.get_bool(db, "registration_open"),
         "languages": locales.LANGUAGE_NAMES,
         "supported": locales.SUPPORTED,
         **ctx,
@@ -308,7 +310,13 @@ def home(request: Request, borant_session: str | None = Cookie(default=None),
         return RedirectResponse("/login", status_code=303)
     apps = db.query(App).filter(App.active.is_(True)).order_by(App.name).all()
     mine = [a for a in apps if auth.may_enter(db, user, a)[0]]
-    return page(request, db, "home.html", sess, user, apps=mine)
+    others = [a for a in apps if a not in mine]
+    pending = {r.app_id for r in db.query(AccessRequest).filter(
+        AccessRequest.user_id == user.id,
+        AccessRequest.status == "pending").all()}
+    return page(request, db, "home.html", sess, user, apps=mine,
+                others=others, pending=pending,
+                verified=bool(user.email_verified_at))
 
 
 # ── Login ─────────────────────────────────────────────────────────────────────
@@ -569,8 +577,18 @@ def orcid_callback(request: Request, code: str = "", state: str = "",
                 f"Hai collegato l'ORCID iD {orcid_id} al tuo account.")
         return RedirectResponse("/profile", status_code=303)
 
-    # mode == login. Deliberately does not create users (SPEC.md §9 rule 3).
+    # mode == login. Crea l'account solo se le registrazioni sono aperte, e
+    # allora comunque **senza grant**: la regola difensiva del §9 non era
+    # «ORCID non crea utenti» ma «l'accesso non si concede da sé», e quella
+    # resta intatta. Tenere le due porte con regole diverse significherebbe
+    # dover spiegare perché la password apre un account e ORCID no.
     found = db.query(User).filter(User.orcid == orcid_id).first()
+    if found is None and registration_open(db):
+        found = User(orcid=orcid_id, orcid_linked_at=utcnow(),
+                     name=data.get("name", "") or orcid_id, is_active=True)
+        db.add(found)
+        db.commit()
+        audit(db, "register.orcid", user=found, ip=ip, orcid=orcid_id)
     if found is None or not found.is_active:
         audit(db, "orcid.login_unknown", ip=ip, orcid=orcid_id)
         return page(request, db, "message.html", None, None,
@@ -871,6 +889,163 @@ def profile_revoke(sid: int, request: Request, csrf: str = Form(""),
             auth.clear_cookie(r)
             return r
     return RedirectResponse("/profile", status_code=303)
+
+
+# ── Registrazione aperta ──────────────────────────────────────────────────────
+#
+# Aprire le registrazioni **non apre nessuna app**: un account nuovo nasce con
+# zero grant, e `grant_required` è il default. Chi si registra ottiene il
+# diritto di *chiedere*, non di entrare. È questa proprietà che rende la cosa
+# sicura, non un controllo all'ingresso (SPEC.md §18).
+#
+# La conferma dell'email non serve a proteggere l'account — non c'è niente da
+# proteggere — ma a evitare che si possa chiedere accesso da un indirizzo che
+# non è tuo. Per questo blocca /request-access e nient'altro.
+
+def registration_open(db: DbSession) -> bool:
+    return settings.get_bool(db, "registration_open")
+
+
+def domain_allowed(db: DbSession, email: str) -> bool:
+    raw = settings.get(db, "registration_domains").strip()
+    if not raw:
+        return True
+    domain = email.rsplit("@", 1)[-1].lower()
+    allowed = [d.strip().lower().lstrip("@") for d in raw.split(",") if d.strip()]
+    return any(domain == a or domain.endswith("." + a) for a in allowed)
+
+
+@app.get("/register", response_class=HTMLResponse)
+def register_form(request: Request, db: DbSession = Depends(get_db)):
+    t = tr(request)
+    if not registration_open(db):
+        return page(request, db, "message.html", None, None,
+                    title=t["reg_closed_title"], body=t["reg_closed_body"],
+                    back="/login")
+    return page(request, db, "register.html", None, None, error="",
+                domains=settings.get(db, "registration_domains"))
+
+
+@app.post("/register", response_class=HTMLResponse)
+def register_submit(request: Request, name: str = Form(""),
+                    email: str = Form(""), password: str = Form(""),
+                    password2: str = Form(""),
+                    db: DbSession = Depends(get_db)):
+    t = tr(request)
+    ip = client_ip(request)
+    if not registration_open(db):
+        return RedirectResponse("/login", status_code=303)
+
+    def again(msg: str):
+        return page(request, db, "register.html", None, None, error=msg,
+                    domains=settings.get(db, "registration_domains"))
+
+    if not auth.register_limiter.hit(f"ip:{ip}"):
+        audit(db, "register.rate_limited", ip=ip)
+        return again(t["login_rate"])
+
+    email = email.strip().lower()
+    if not email or "@" not in email:
+        return again(t["reg_bad_email"])
+    if not domain_allowed(db, email):
+        return again(t["reg_bad_domain"])
+    if len(password) < 10 or password != password2:
+        return again(t["invite_err"])
+    if db.query(User).filter(User.email == email).first():
+        # Si dice, perché il contrario sarebbe peggio: senza questo l'utente
+        # crea un secondo account convinto di non averne uno.
+        return again(t["reg_taken"])
+
+    user = User(email=email, name=name.strip() or email.split("@")[0],
+                password_hash=auth.hash_password(password), is_active=True)
+    db.add(user)
+    db.commit()
+
+    plain, digest = new_token()
+    db.add(Token(kind="verify", token_hash=digest, email=email,
+                 user_id=user.id, expires_at=utcnow() + timedelta(days=7)))
+    db.commit()
+    link = f"{settings.base_url(db)}/confirm/{plain}"
+    ok, err = mailer.send(db, email, t["reg_confirm_subject"],
+                          f"""{t['reg_confirm_body']}
+
+{link}
+""")
+    audit(db, "register.ok", user=user, ip=ip, ua=user_agent(request),
+          mail_ok=ok, error=err)
+
+    token = auth.create_session(db, user, ip=ip, ua=user_agent(request))
+    r = RedirectResponse("/", status_code=303)
+    auth.set_cookie(r, token)
+    return r
+
+
+@app.get("/confirm/{raw}", response_class=HTMLResponse)
+def confirm_email(raw: str, request: Request,
+                  borant_session: str | None = Cookie(default=None),
+                  db: DbSession = Depends(get_db)):
+    t = tr(request)
+    tok = db.query(Token).filter(Token.token_hash == hash_token(raw),
+                                 Token.kind == "verify").first()
+    if tok is None or not tok.is_live():
+        return page(request, db, "message.html", None, None,
+                    title=t["reset_expired_title"],
+                    body=t["reset_expired_body"], back="/")
+    user = db.get(User, tok.user_id)
+    if user is not None:
+        user.email_verified_at = utcnow()
+    tok.used_at = utcnow()
+    db.commit()
+    audit(db, "email.verified", user=user, ip=client_ip(request))
+    sess, me = current(db, borant_session)
+    return page(request, db, "message.html", sess, me,
+                title=t["reg_confirmed_title"], body=t["reg_confirmed_body"],
+                back="/")
+
+
+@app.post("/request-access", response_class=HTMLResponse)
+def request_access(request: Request, app_id: int = Form(0),
+                   message: str = Form(""), csrf: str = Form(""),
+                   borant_session: str | None = Cookie(default=None),
+                   db: DbSession = Depends(get_db)):
+    t = tr(request)
+    sess, user, redirect = require_user(db, borant_session)
+    if redirect:
+        return redirect
+    if not csrf_ok(sess, csrf):
+        return RedirectResponse("/", status_code=303)
+    if not user.email_verified_at:
+        return page(request, db, "message.html", sess, user,
+                    title=t["req_unverified_title"],
+                    body=t["req_unverified_body"], back="/")
+
+    target = db.get(App, app_id)
+    if target is None or not target.active:
+        return RedirectResponse("/", status_code=303)
+
+    existing = (db.query(AccessRequest)
+                  .filter(AccessRequest.user_id == user.id,
+                          AccessRequest.app_id == target.id,
+                          AccessRequest.status == "pending").first())
+    if existing is None:
+        db.add(AccessRequest(user_id=user.id, app_id=target.id,
+                             message=message.strip()[:500]))
+        db.commit()
+        audit(db, "access.requested", user=user, ip=client_ip(request),
+              app=target.slug)
+        for a in db.query(User).filter(User.is_admin.is_(True),
+                                       User.is_active.is_(True)).all():
+            if a.email:
+                mailer.send(db, a.email,
+                            f"Richiesta di accesso a {target.name}",
+                            f"""{user.display} <{user.email}> chiede accesso a {target.name} ({target.host}).
+
+{message.strip()[:500]}
+
+Decidi da {settings.base_url(db)}/admin/users
+""")
+    return page(request, db, "message.html", sess, user,
+                title=t["req_sent_title"], body=t["req_sent_body"], back="/")
 
 
 # ── Admin ─────────────────────────────────────────────────────────────────────

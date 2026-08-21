@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Creazione in blocco — {{ site_name }}{% endblock %}
+{% block body %}
+<h1>Creazione in blocco</h1>
+<p class="sub">{{ rows | length }} righe elaborate, modalità <code>{{ mode }}</code>.</p>
+
+{% if mode == 'create' %}
+  <div class="flash flash-error">
+    <strong>Le password compaiono solo adesso.</strong> Copiale prima di
+    lasciare questa pagina: sono hashate nel database e non c'è modo di
+    rileggerle. Chi le perde passa dal reset.
+  </div>
+{% endif %}
+
+<div class="card">
+  <div class="table-wrap">
+    <table class="table">
+      <tr><th>Email</th><th>Esito</th><th>{{ 'Password' if mode == 'create' else 'Link (se la mail non è partita)' }}</th></tr>
+      {% for r in rows %}
+        <tr>
+          <td class="mono">{{ r.email }}</td>
+          <td>
+            {% if 'creato' in r.esito or 'inviato' in r.esito %}
+              <span class="badge badge-ok">{{ r.esito }}</span>
+            {% elif 'già presente' in r.esito %}
+              <span class="badge badge-muted">{{ r.esito }}</span>
+            {% else %}
+              <span class="badge badge-danger">{{ r.esito }}</span>
+            {% endif %}
+          </td>
+          <td class="mono break">{{ r.extra }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+
+<div class="actions">
+  <a class="btn" href="/admin/users">Torna agli utenti</a>
+</div>
+{% endblock %}
