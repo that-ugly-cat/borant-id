@@ -38,7 +38,7 @@
   <div class="actions"><a class="btn" href="/admin/config">Torna alla configurazione</a></div>
 
 {% else %}
-  <h1>Stai per scrivere a {{ people | length }} persone</h1>
+  <h1>Stai per scrivere a {{ people | length }} {{ 'persona' if people | length == 1 else 'persone' }}</h1>
   <p class="sub">{{ description }}</p>
 
   {% if problem %}
@@ -92,7 +92,7 @@
       <input type="hidden" name="subject" value="{{ subject }}">
       <textarea name="body" style="display:none">{{ body }}</textarea>
       <div class="actions">
-        <button class="btn-primary" type="submit">Manda a {{ people | length }} persone</button>
+        <button class="btn-primary" type="submit">Manda a {{ people | length }} {{ 'persona' if people | length == 1 else 'persone' }}</button>
         <a class="btn" href="/admin/config">Annulla</a>
       </div>
     </form>
