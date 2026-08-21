@@ -12,6 +12,27 @@ perché portano tutte JWT stateless. Un cookie rubato valeva finché non scadeva
 
 Per il disegno completo vedi `SPEC.md`.
 
+## Stato, al 21 agosto 2026
+
+**Sei app dietro il gate**, tutte per-path: `paper2md`, `onopedia`, `roompulse`,
+`lssr`, `papertrail`, `contrarian`. Ne restano cinque nel perimetro —
+`grantradar`, `survey`, `topictracker`, `autocode`, `argumap` — e la checklist
+per migrarne una sta nel §13 della spec.
+
+Tre cose imparate migrandone sei, che valgono più di qualunque elenco di
+funzionalità:
+
+- **«Non cambia una riga di codice» non è mai stato vero.** Tutte e sei hanno
+  avuto bisogno del lettore di header, comprese quelle date per «solo la porta».
+  Un'app che ha un modo *suo* di riconoscere chi entra non lo perde perché gli
+  metti un gate davanti: senza codice ottieni due porte in fila, non una.
+- **Che superficie pubblica ha un'app non è solo una domanda sul codice.** Per
+  `paper2md` la risposta stava sul sito, che la annunciava come «no login»:
+  gatarla tutta ha reso falsa una pagina pubblica per mezza giornata.
+- **La protezione può stare in un middleware.** Un censimento delle rotte che
+  guarda solo i corpi delle funzioni produce un elenco di falsi positivi con
+  l'aria di essere completo.
+
 ## Il vincolo che viene prima di tutto
 
 **Ogni app continua a funzionare senza Borant ID.** Non è una promessa di

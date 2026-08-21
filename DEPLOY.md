@@ -55,24 +55,34 @@ docker exec -it borantid python seed.py --email TUA@MAIL --name Spit --apps
 
 ## 2. Caddy
 
-Nel `Caddyfile`, **due** snippet riutilizzabili e il blocco del gate:
+Nel `Caddyfile`, **tre** snippet riutilizzabili e il blocco del gate. Vanno
+definiti **prima di qualunque blocco di sito**: `import` si risolve in ordine di
+lettura, e uno snippet scritto in fondo non esiste per le app scritte sopra —
+Caddy lo segnala con «File to import not found», che manda a cercare un file
+inesistente invece dell'ordine sbagliato.
 
 ```
-# Da importare nei blocchi PUBBLICI di *.borant.eu: nessuna app deve mai
-# vedere il cookie di sessione del gate.
+# Invariante numero uno: nessuna app deve mai ricevere un X-Borant-* messo dal
+# client. Va importato in OGNI ramo, gated e pubblico. Vedi la seconda nota.
+(noforge) {
+    request_header -X-Borant-Sub
+    request_header -X-Borant-Email
+    request_header -X-Borant-Name
+    request_header -X-Borant-Level
+    request_header -X-Borant-Hint
+    request_header -X-Borant-Expires
+}
+
+# Da importare in OGNI blocco di *.borant.eu: nessuna app deve mai vedere il
+# cookie di sessione del gate.
 (nocookie) {
     request_header Cookie "borant_session=[^;]*;?\s*" ""
 }
 
-# route{} impone l'ordine di esecuzione, ed è tutto. Vedi la nota qui sotto.
+# route{} impone l'ordine di esecuzione, ed è tutto. Vedi la prima nota.
 (borantid) {
     route {
-        request_header -X-Borant-Sub
-        request_header -X-Borant-Email
-        request_header -X-Borant-Name
-        request_header -X-Borant-Level
-        request_header -X-Borant-Hint
-        request_header -X-Borant-Expires
+        import noforge
 
         forward_auth localhost:8019 {
             uri /verify
@@ -87,6 +97,26 @@ id.borant.eu {
     # /verify è solo per la forward_auth interna, mai per il pubblico
     respond /verify 404
     reverse_proxy localhost:8019
+}
+```
+
+Un'app **per-path** — cioè quasi tutte — si scrive così, e il matcher va sui
+path **pubblici** e non su quelli privati, di proposito: il ramo di default
+dev'essere quello gated, così una rotta aggiunta fra sei mesi nasce chiusa
+invece che aperta.
+
+```
+esempio.borant.eu {
+    @pubbliche path /health /static/* /login /logout
+    handle @pubbliche {
+        import noforge
+        import nocookie
+        reverse_proxy localhost:80xx
+    }
+    handle {
+        import borantid
+        reverse_proxy localhost:80xx
+    }
 }
 ```
 
@@ -106,6 +136,25 @@ id.borant.eu {
 > Tre fasi in un ordine solo: cancella → autentica → togli il cookie. È
 > esattamente quello che `route{}` garantisce e che l'ordinamento automatico
 > non garantisce.
+
+> **`noforge` va importato anche nei rami pubblici, ed è la riga che sembra
+> inutile.** Trovato il 21/8/2026 con una prova a vuoto, prima che riguardasse
+> un'app vera.
+>
+> Prima della correzione, un `X-Borant-Sub: 01FORGIATO` spedito verso un path
+> **pubblico** arrivava all'app intatto. La cancellazione viveva solo dentro
+> `(borantid)`, che i rami pubblici non importano — e su un path pubblico non
+> c'è nessuna `forward_auth` che rimetta i valori veri: quello che manda il
+> client è tutto quello che l'app riceve.
+>
+> Il secondo lucchetto **non copre questo caso**, ed è il motivo per cui vale la
+> pena scriverlo: `BORANT_TRUSTED_PROXY` verifica *da dove* arriva la richiesta,
+> e la richiesta forgiata arriva da Caddy, cioè proprio dalla sorgente che quel
+> controllo dichiara fidata. Protegge dal container esposto per sbaglio, non da
+> qui.
+>
+> Per un'app tutta gated non cambia niente. Per un'app per-path in
+> `AUTH_MODE=gateway` è un bypass completo dell'identità.
 
 ```bash
 sudo systemctl reload caddy
