@@ -14,12 +14,12 @@ Per il disegno completo vedi `SPEC.md`.
 
 ## Stato, al 21 agosto 2026
 
-**Sei app dietro il gate**, tutte per-path: `paper2md`, `onopedia`, `roompulse`,
-`lssr`, `papertrail`, `contrarian`. Ne restano cinque nel perimetro —
-`grantradar`, `survey`, `topictracker`, `autocode`, `argumap` — e la checklist
-per migrarne una sta nel §13 della spec.
+**Sette app dietro il gate**, tutte per-path: `paper2md`, `onopedia`,
+`roompulse`, `lssr`, `papertrail`, `contrarian`, `survey`. Ne restano quattro
+nel perimetro — `grantradar`, `topictracker`, `autocode`, `argumap` — e la
+checklist per migrarne una sta nel §13 della spec.
 
-Tre cose imparate migrandone sei, che valgono più di qualunque elenco di
+Quattro cose imparate migrandone sette, che valgono più di qualunque elenco di
 funzionalità:
 
 - **«Non cambia una riga di codice» non è mai stato vero.** Tutte e sei hanno
@@ -32,6 +32,13 @@ funzionalità:
 - **La protezione può stare in un middleware.** Un censimento delle rotte che
   guarda solo i corpi delle funzioni produce un elenco di falsi positivi con
   l'aria di essere completo.
+- **E può non esserci nessuna rotta da censire.** In Survey i file che le
+  domande di un questionario referenziano escono da un mount `StaticFiles` su
+  `/uploads`: gatarlo avrebbe lasciato la pagina caricare e le immagini dentro
+  rimbalzare al login, in silenzio e settimane dopo.
+
+Le ultime tre sono la stessa cosa vista da tre parti — il posto dove sta scritto
+cosa è pubblico non è mai dove lo cerchi la prima volta.
 
 ## Il vincolo che viene prima di tutto
 
