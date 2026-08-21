@@ -765,9 +765,10 @@ def reset_submit(raw: str, request: Request, password: str = Form(""),
     n = auth.revoke_all(db, user, "password_reset")
     audit(db, "reset.done", user=user, ip=client_ip(request), sessions=n)
     if user.email:
-        mailer.send_security_notice(
-            db, user.email, "Password cambiata",
-            f"Sono state chiuse {n} sessioni aperte.")
+        chiuse = ("Non c'erano altre sessioni aperte." if n == 0 else
+                  "È stata chiusa 1 sessione aperta." if n == 1 else
+                  f"Sono state chiuse {n} sessioni aperte.")
+        mailer.send_security_notice(db, user.email, "Password cambiata", chiuse)
     return page(request, db, "message.html", None, None,
                 title=t["reset_done_title"], body=t["reset_done_body"],
                 back="/login")
