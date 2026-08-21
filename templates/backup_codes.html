@@ -17,6 +17,6 @@
   <p class="note">
     I codici precedenti, se ce n'erano, sono stati invalidati.
   </p>
-  <a class="btn" href="/profile">Fatto, li ho messi al sicuro</a>
+  <a class="btn" href="{{ cont | default('/profile', true) }}">Fatto, li ho messi al sicuro</a>
 </div>
 {% endblock %}

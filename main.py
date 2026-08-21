@@ -386,11 +386,15 @@ def twofa_submit(request: Request, code: str = Form(""), rd: str = Form(""),
             user.totp_secret = enc(secret)
             user.totp_confirmed_at = utcnow()
             db.commit()
-            _issue_backup_codes(db, user)
+            plain = _issue_backup_codes(db, user)
             auth.elevate(db, sess)
             audit(db, "2fa.enrolled", user=user, ip=ip)
             auth.invalidate_user(user.id)
-            return RedirectResponse(rd or "/profile?codes=1", status_code=303)
+            # I codici si mostrano subito, non si rimanda alla destinazione:
+            # generarli e reindirizzare lascia l'utente con dieci codici che
+            # esistono, che non ha mai visto, e che quindi non può usare.
+            return page(request, db, "backup_codes.html", sess, user,
+                        codes=plain, cont=rd or "/profile")
         uri = totplib.provisioning_uri(secret or "", user.email or user.subject)
         return page(request, db, "twofa_enroll.html", sess, user, rd=rd,
                     secret=secret or "", otpauth=uri,
