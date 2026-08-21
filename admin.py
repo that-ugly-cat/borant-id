@@ -435,10 +435,15 @@ def config(request: Request, borant_session: str | None = Cookie(default=None),
         return redirect
     cfg = settings.smtp_config(db)
     cfg.pop("password", None)
+    everyone = (db.query(User)
+                  .filter(User.is_active.is_(True), User.email.isnot(None))
+                  .order_by(User.email).all())
     return _page(request, db, "admin_config.html", sess, me, cfg=cfg,
                  has_password=bool(settings.get(db, "smtp_password_enc")),
                  site_name=settings.get(db, "site_name"),
                  registration_domains=settings.get(db, "registration_domains"),
+                 apps=db.query(App).order_by(App.name).all(),
+                 all_users=everyone, n_users=len(everyone),
                  base=settings.base_url(db),
                  msg=request.query_params.get("msg", ""),
                  error=request.query_params.get("err", ""))
@@ -814,3 +819,109 @@ def delete_user(uid: int, request: Request, confirm_email: str = Form(""),
           audit_rows_kept=len(own), audit_rows_scrubbed=scrubbed,
           apps=apps_touched)
     return RedirectResponse("/admin/users?deleted=1", status_code=303)
+
+
+# ── Messaggi agli utenti ──────────────────────────────────────────────────────
+#
+# Tre scelte che valgono più del codice:
+#
+#   1. **Una mail per persona, mai in copia nascosta.** Un BCC a trenta
+#      studenti sembra efficiente ed è il modo di scoprire che qualcuno ha
+#      risposto a tutti. E non risparmia quota: Infomaniak conta i destinatari
+#      uno per uno comunque. Individuale vuol dire anche che la tabella dei
+#      risultati dice *chi* è fallito, non *che qualcosa* è fallito.
+#
+#   2. **Solo a utenti registrati.** Nessun campo per indirizzi liberi: quello
+#      farebbe di questo pannello un piccolo strumento di spam, con la
+#      reputazione di un dominio vero attaccata sopra.
+#
+#   3. **Si passa da una conferma**, come per la cancellazione (§19). Spedire è
+#      irreversibile e tocca altre persone: vedere quanti sono prima di premere
+#      non è cerimonia.
+
+def _recipients(db, target: str):
+    """(lista di utenti, descrizione leggibile). Solo attivi e con un'email:
+    un utente entrato solo con ORCID può non averla."""
+    base = (db.query(User)
+              .filter(User.is_active.is_(True), User.email.isnot(None))
+              .order_by(User.email))
+    if target == "tutti":
+        return base.all(), "tutti gli utenti attivi"
+    if target.startswith("app:"):
+        try:
+            app_id = int(target[4:])
+        except ValueError:
+            return [], "selezione non valida"
+        a = db.get(App, app_id)
+        if a is None:
+            return [], "app inesistente"
+        ids = {g.user_id for g in
+               db.query(Grant).filter(Grant.app_id == app_id).all()}
+        return [u for u in base.all() if u.id in ids], f"chi ha un grant su {a.name}"
+    if target.startswith("user:"):
+        try:
+            u = db.get(User, int(target[5:]))
+        except ValueError:
+            return [], "selezione non valida"
+        return ([u] if u and u.is_active and u.email else []), "un utente solo"
+    return [], "selezione non valida"
+
+
+@router.post("/message/preview", response_class=HTMLResponse)
+def message_preview(request: Request, target: str = Form("tutti"),
+                    subject: str = Form(""), body: str = Form(""),
+                    csrf: str = Form(""),
+                    borant_session: str | None = Cookie(default=None),
+                    db: DbSession = Depends(get_db)):
+    sess, me, redirect = _guard(db, borant_session)
+    if redirect:
+        return redirect
+    if not _csrf_ok(sess, csrf):
+        return RedirectResponse("/admin/config", status_code=303)
+
+    people,descrizione = _recipients(db, target)
+    problem = ""
+    if not subject.strip() or not body.strip():
+        problem = "Servono un oggetto e un testo."
+    elif not people:
+        problem = "Nessun destinatario con questa selezione."
+    elif not settings.get_bool(db, "smtp_enabled"):
+        problem = "SMTP non è attivo: la mail non partirebbe."
+
+    return _page(request, db, "admin_message.html", sess, me, sent=False,
+                 people=people, target=target, description=descrizione,
+                 subject=subject, body=body, problem=problem, rows=[])
+
+
+@router.post("/message/send", response_class=HTMLResponse)
+def message_send(request: Request, target: str = Form("tutti"),
+                 subject: str = Form(""), body: str = Form(""),
+                 csrf: str = Form(""),
+                 borant_session: str | None = Cookie(default=None),
+                 db: DbSession = Depends(get_db)):
+    sess, me, redirect = _guard(db, borant_session)
+    if redirect:
+        return redirect
+    if not _csrf_ok(sess, csrf):
+        return RedirectResponse("/admin/config", status_code=303)
+
+    people, descrizione = _recipients(db, target)
+    if not subject.strip() or not body.strip() or not people:
+        return RedirectResponse("/admin/config", status_code=303)
+
+    rows, ok_count = [], 0
+    for u in people:
+        text = (body.replace("{nome}", u.name or u.email.split("@")[0])
+                    .replace("{email}", u.email))
+        ok, err = mailer.send(db, u.email, subject.strip(), text + "\n")
+        rows.append({"email": u.email, "ok": ok, "error": err[:80]})
+        if ok:
+            ok_count += 1
+
+    # Il corpo non finisce nel log: può essere lungo e può contenere di tutto.
+    # Restano oggetto, quanti e a chi, che è ciò che serve per ricostruire.
+    audit(db, "message.sent", user=me, ip=_ip(request), subject=subject.strip(),
+          target=descrizione, inviati=ok_count, falliti=len(rows) - ok_count)
+    return _page(request, db, "admin_message.html", sess, me, sent=True,
+                 people=people, target=target, description=descrizione,
+                 subject=subject, body=body, problem="", rows=rows)

@@ -101,6 +101,41 @@
   </form>
 </div>
 
+<h2>Scrivi agli utenti</h2>
+<div class="card">
+  <form method="post" action="/admin/message/preview">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="target">A chi</label>
+    <select id="target" name="target">
+      <option value="tutti">Tutti gli utenti attivi ({{ n_users }})</option>
+      {% for a in apps %}
+        <option value="app:{{ a.id }}">Chi ha un grant su {{ a.name }}</option>
+      {% endfor %}
+      {% for u in all_users %}
+        <option value="user:{{ u.id }}">Solo {{ u.display }} — {{ u.email }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="msg_subject">Oggetto</label>
+    <input id="msg_subject" name="subject" type="text">
+
+    <label for="msg_body">Testo</label>
+    <textarea id="msg_body" name="body" rows="8"
+              placeholder="Ciao {nome},&#10;&#10;…"></textarea>
+
+    <p class="note">
+      <code>{nome}</code> e <code>{email}</code> vengono sostituiti per ogni
+      destinatario. Testo semplice, niente HTML. Parte <strong>una mail per
+      persona</strong>, mai una in copia nascosta: nessuno vede gli indirizzi
+      degli altri, e se qualcuna fallisce sai quale. Solo utenti registrati —
+      qui non c'è un campo per indirizzi liberi, di proposito.
+    </p>
+    <div class="actions">
+      <button class="btn-primary" type="submit">Vedi chi riceve, poi conferma</button>
+    </div>
+  </form>
+</div>
+
 <div class="note">
   <strong>Due trappole note.</strong>
   Con Gmail serve l'autenticazione a due fattori attiva sull'account più una

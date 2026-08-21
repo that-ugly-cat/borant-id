@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Messaggio inviato' if sent else 'Conferma invio' }} — {{ site_name }}{% endblock %}
+{% block body %}
+
+{% if sent %}
+  {% set ok = rows | selectattr('ok') | list | length %}
+  <h1>Inviato a {{ ok }} su {{ rows | length }}</h1>
+  <p class="sub">Oggetto: <strong>{{ subject }}</strong> · destinatari: {{ description }}</p>
+
+  {% if ok < rows | length %}
+    <div class="flash flash-error">
+      Qualcuna non è partita. Se l'errore parla di limite, è la finestra
+      scorrevole di 24 ore di Infomaniak: i destinatari si contano uno per uno,
+      e gli slot si liberano ventiquattro ore dopo ciascun invio, non a
+      mezzanotte.
+    </div>
+  {% else %}
+    <div class="flash flash-ok">Tutte partite.</div>
+  {% endif %}
+
+  <div class="card">
+    <div class="table-wrap">
+      <table class="table">
+        <tr><th>Destinatario</th><th>Esito</th></tr>
+        {% for r in rows %}
+          <tr>
+            <td class="mono">{{ r.email }}</td>
+            <td>
+              {% if r.ok %}<span class="badge badge-ok">inviata</span>
+              {% else %}<span class="badge badge-danger">{{ r.error }}</span>{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+
+  <div class="actions"><a class="btn" href="/admin/config">Torna alla configurazione</a></div>
+
+{% else %}
+  <h1>Stai per scrivere a {{ people | length }} persone</h1>
+  <p class="sub">{{ description }}</p>
+
+  {% if problem %}
+    <div class="flash flash-error">{{ problem }}</div>
+    <div class="actions"><a class="btn" href="/admin/config">Torna indietro</a></div>
+  {% else %}
+
+    {% if people | length > 100 %}
+      <div class="flash flash-error">
+        <strong>{{ people | length }} destinatari.</strong> Il limite Infomaniak
+        è 200 o 500 ogni 24 ore secondo il piano, e i destinatari si contano
+        uno per uno: con questo invio ne consumi {{ people | length }}. La
+        finestra è scorrevole, quindi gli slot tornano poco a poco e non tutti
+        a mezzanotte.
+      </div>
+    {% endif %}
+
+    <div class="card">
+      <h3>Il messaggio</h3>
+      <p><strong>{{ subject }}</strong></p>
+      <pre class="mono" style="white-space:pre-wrap; margin:0">{{ body }}</pre>
+      <p class="note" style="margin-bottom:0">
+        <code>{nome}</code> e <code>{email}</code> vengono sostituiti per ogni
+        destinatario. Il testo parte in chiaro, senza HTML.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>A chi</h3>
+      <div class="table-wrap">
+        <table class="table">
+          {% for u in people %}
+            <tr>
+              <td>{{ u.display }}</td>
+              <td class="mono muted">{{ u.email }}</td>
+            </tr>
+          {% endfor %}
+        </table>
+      </div>
+      <p class="note" style="margin-bottom:0">
+        <strong>Una mail per persona, non una in copia nascosta.</strong> Così
+        nessuno vede gli indirizzi degli altri, e se qualcuna fallisce sai
+        quale. In BCC non si risparmierebbe nulla comunque: il conto dei
+        destinatari è lo stesso.
+      </p>
+    </div>
+
+    <form method="post" action="/admin/message/send">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="target" value="{{ target }}">
+      <input type="hidden" name="subject" value="{{ subject }}">
+      <textarea name="body" style="display:none">{{ body }}</textarea>
+      <div class="actions">
+        <button class="btn-primary" type="submit">Manda a {{ people | length }} persone</button>
+        <a class="btn" href="/admin/config">Annulla</a>
+      </div>
+    </form>
+  {% endif %}
+{% endif %}
+{% endblock %}
