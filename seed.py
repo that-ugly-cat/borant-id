@@ -51,7 +51,12 @@ PERIMETER = [
 
     # categoria A — solo la porta, nessun provisioning, nessun hint
     ("survey",      "Survey",      "survey.borant.eu",      ["/admin"], ""),
-    ("contrarian",  "Contrarian",  "contrarian.borant.eu",  ["/admin"], ""),
+    ("contrarian",  "Contrarian",  "contrarian.borant.eu",  [], ""),
+                                 # Niente `2F` (deciso il 21/8/2026). Le
+                                 # credenziali istituzionali si impostano da
+                                 # `/me`, che e' a un fattore: metterlo solo su
+                                 # `/admin` avrebbe protetto la porta di
+                                 # servizio lasciando aperta quella principale.
     ("grantradar",  "Grant Radar", "grantradar.borant.eu",  [], ""),
     ("onopedia",    "Onopedia",    "wiki.borant.eu",        [], ""),
     ("topictracker", "TopicTracker", "topictracker.borant.eu", [], ""),
