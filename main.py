@@ -57,12 +57,27 @@ RESET_HOURS = 1
 # ── Small helpers ─────────────────────────────────────────────────────────────
 
 def client_ip(request: Request) -> str:
-    """Only Caddy's value is trusted; the socket is the fallback. A spoofed
-    X-Forwarded-For would otherwise poison the audit log and hand out free
-    login attempts (SPEC.md §14)."""
-    fwd = request.headers.get("x-forwarded-for", "")
-    if fwd:
-        return fwd.split(",")[0].strip()[:64]
+    """The caller's address, as well as we can know it.
+
+    `CF-Connecting-IP` first, because the borant.eu zone is proxied by
+    Cloudflare and without it every request looks like it comes from a
+    Cloudflare edge node. That is not cosmetic: it breaks rate limiting in both
+    directions — an attacker gets a fresh bucket per edge, and unrelated users
+    behind one edge share a bucket and lock each other out — and it fills the
+    audit log with addresses that identify nobody.
+
+    Trusting that header is sound only as long as the origin is reachable
+    exclusively through Cloudflare. Today it is not: ports 80/443 are open to
+    the world at the Hetzner firewall, so somebody who learns the origin IP
+    could forge it. The real fix is restricting those ports to Cloudflare's
+    ranges; until then this is still strictly better than counting edges,
+    because forging the header only lets an attacker evade their own limit —
+    which rotating through edges already achieved.
+    """
+    for header in ("cf-connecting-ip", "x-forwarded-for"):
+        value = request.headers.get(header, "")
+        if value:
+            return value.split(",")[0].strip()[:64]
     return (request.client.host if request.client else "")[:64]
 
 
