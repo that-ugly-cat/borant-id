@@ -82,15 +82,28 @@ def seed_apps(db) -> int:
 
 def main() -> int:
     p = argparse.ArgumentParser()
-    p.add_argument("--email", required=True)
+    p.add_argument("--email", default="",
+                   help="crea un amministratore con questa email")
     p.add_argument("--name", default="")
     p.add_argument("--apps", action="store_true",
-                   help="registra anche le undici app del perimetro")
+                   help="registra o riallinea le undici app del perimetro")
     args = p.parse_args()
+
+    if not args.email and not args.apps:
+        p.error("serve almeno --email oppure --apps")
 
     init_db()
     db = SessionLocal()
     try:
+        # --apps da solo riallinea il registro senza toccare gli utenti.
+        # Prima --email era obbligatoria e un riallineamento distratto creava
+        # un amministratore vero in produzione: successo il 21/8/2026.
+        if not args.email:
+            made = seed_apps(db)
+            print(f"App registrate: {made} nuove su {len(PERIMETER)}.")
+            print("Nessun utente creato.")
+            return 0
+
         email = args.email.strip().lower()
         if db.query(User).filter(User.email == email).first():
             print(f"Esiste già un utente con {email}. Niente da fare.")
