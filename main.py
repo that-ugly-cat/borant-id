@@ -573,8 +573,8 @@ def orcid_callback(request: Request, code: str = "", state: str = "",
         audit(db, "orcid.linked", user=user, ip=ip, orcid=orcid_id)
         if user.email:
             mailer.send_security_notice(
-                db, user.email, "ORCID collegato",
-                f"Hai collegato l'ORCID iD {orcid_id} al tuo account.")
+                db, user.email, "ORCID linked",
+                f"The ORCID iD {orcid_id} is now linked to your account.")
         return RedirectResponse("/profile", status_code=303)
 
     # mode == login. Crea l'account solo se le registrazioni sono aperte, e
@@ -633,10 +633,9 @@ def forbidden_ask(request: Request, host: str = Form(""), csrf: str = Form(""),
                                    User.is_active.is_(True)).all()
     for a in admins:
         if a.email:
-            mailer.send(db, a.email, f"Richiesta di accesso a {host}",
-                        f"{user.display} ({user.email}) chiede accesso a "
-                        f"{host}.\n\nConcedilo da "
-                        f"{settings.base_url(db)}/admin/users\n")
+            mailer.send_access_request(db, a.email, user.display, user.email,
+                                       host, host, "",
+                                       settings.base_url(db))
     return page(request, db, "message.html", sess, user,
                 title=t["forbidden_sent_title"],
                 body=t["forbidden_sent_body"], back="/")
@@ -765,10 +764,10 @@ def reset_submit(raw: str, request: Request, password: str = Form(""),
     n = auth.revoke_all(db, user, "password_reset")
     audit(db, "reset.done", user=user, ip=client_ip(request), sessions=n)
     if user.email:
-        chiuse = ("Non c'erano altre sessioni aperte." if n == 0 else
-                  "È stata chiusa 1 sessione aperta." if n == 1 else
-                  f"Sono state chiuse {n} sessioni aperte.")
-        mailer.send_security_notice(db, user.email, "Password cambiata", chiuse)
+        closed = ("There were no other open sessions." if n == 0 else
+                   "One open session was closed." if n == 1 else
+                   f"{n} open sessions were closed.")
+        mailer.send_security_notice(db, user.email, "Password changed", closed)
     return page(request, db, "message.html", None, None,
                 title=t["reset_done_title"], body=t["reset_done_body"],
                 back="/login")
@@ -837,9 +836,9 @@ def profile_totp_disable(request: Request, csrf: str = Form(""),
     auth.invalidate_user(user.id)
     audit(db, "2fa.disabled", user=user, ip=client_ip(request))
     if user.email:
-        mailer.send_security_notice(db, user.email, "Autenticazione a due "
-                                    "fattori disattivata",
-                                    "Se non sei stato tu, riattivala subito.")
+        mailer.send_security_notice(
+            db, user.email, "Two-factor authentication turned off",
+            "If this was not you, turn it back on immediately.")
     return RedirectResponse("/profile", status_code=303)
 
 
@@ -967,11 +966,7 @@ def register_submit(request: Request, name: str = Form(""),
                  user_id=user.id, expires_at=utcnow() + timedelta(days=7)))
     db.commit()
     link = f"{settings.base_url(db)}/confirm/{plain}"
-    ok, err = mailer.send(db, email, t["reg_confirm_subject"],
-                          f"""{t['reg_confirm_body']}
-
-{link}
-""")
+    ok, err = mailer.send_confirm(db, email, link)
     audit(db, "register.ok", user=user, ip=ip, ua=user_agent(request),
           mail_ok=ok, error=err)
 
@@ -1037,14 +1032,10 @@ def request_access(request: Request, app_id: int = Form(0),
         for a in db.query(User).filter(User.is_admin.is_(True),
                                        User.is_active.is_(True)).all():
             if a.email:
-                mailer.send(db, a.email,
-                            f"Richiesta di accesso a {target.name}",
-                            f"""{user.display} <{user.email}> chiede accesso a {target.name} ({target.host}).
-
-{message.strip()[:500]}
-
-Decidi da {settings.base_url(db)}/admin/users
-""")
+                mailer.send_access_request(
+                    db, a.email, user.display, user.email, target.name,
+                    target.host, message.strip()[:500],
+                    settings.base_url(db))
     return page(request, db, "message.html", sess, user,
                 title=t["req_sent_title"], body=t["req_sent_body"], back="/")
 

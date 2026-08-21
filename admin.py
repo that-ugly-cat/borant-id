@@ -191,8 +191,9 @@ def reset_2fa(uid: int, request: Request, csrf: str = Form(""),
               target=u.email)
         if u.email:
             mailer.send_security_notice(
-                db, u.email, "Secondo fattore azzerato da un amministratore",
-                f"È stato azzerato da {me.display}. Riattivalo dal profilo.")
+                db, u.email, "Second factor reset by an administrator",
+                f"It was reset by {me.display}. Set it up again from your "
+                "profile.")
     return RedirectResponse("/admin/users", status_code=303)
 
 
@@ -510,8 +511,7 @@ def config_test(request: Request, to: str = Form(""), csrf: str = Form(""),
         return RedirectResponse("/admin/config", status_code=303)
     from urllib.parse import quote
     target = to.strip() or (me.email or "")
-    ok, err = mailer.send(db, target, "Prova di invio — Borant ID",
-                          "Se leggi questo, il relay SMTP funziona.\n")
+    ok, err = mailer.send_test(db, target)
     audit(db, "config.smtp_test", user=me, ip=_ip(request), to=target,
           ok=ok, error=err)
     if ok:
@@ -554,10 +554,8 @@ def request_approve(rid: int, request: Request, level_hint: str = Form(""),
           target=req.user.email if req.user else "", app=req.app.slug,
           hint=level_hint)
     if req.user and req.user.email:
-        mailer.send(db, req.user.email,
-                    f"Accesso concesso: {req.app.name}",
-                    f"Puoi ora entrare in {req.app.name} "
-                    f"(https://{req.app.host}/).\n")
+        mailer.send_access_granted(db, req.user.email, req.app.name,
+                                   req.app.host)
     return RedirectResponse("/admin/users", status_code=303)
 
 
@@ -577,6 +575,10 @@ def request_deny(rid: int, request: Request, csrf: str = Form(""),
     db.commit()
     audit(db, "access.denied", user=me, ip=_ip(request),
           target=req.user.email if req.user else "", app=req.app.slug)
+    # Chi ha chiesto merita una risposta anche quando è no: senza, la richiesta
+    # resta in un limbo che assomiglia molto a essere ignorati.
+    if req.user and req.user.email:
+        mailer.send_access_denied(db, req.user.email, req.app.name)
     return RedirectResponse("/admin/users", status_code=303)
 
 
