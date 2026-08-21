@@ -13,6 +13,7 @@ grant keeps working for thirty seconds.
 import json
 import secrets
 from datetime import timedelta
+from urllib.parse import quote
 
 from fastapi import APIRouter, Cookie, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -676,3 +677,140 @@ async def users_batch(request: Request, people: str = Form(""),
           count=len(rows), apps=list(grants))
     return _page(request, db, "admin_batch.html", sess, me, rows=rows,
                  mode=mode)
+
+
+# ── Cancellazione utente ──────────────────────────────────────────────────────
+#
+# Esiste perché con le classi arriveranno richieste di cancellazione dati, e
+# fino a oggi non c'era una strada: il pannello offre «disattiva», e un
+# `DELETE` diretto sbatte contro la chiave esterna di `audit`.
+#
+# Tre cose che questa funzione fa e che non sono ovvie:
+#
+#   1. **Le righe di audit sopravvivono, slegate.** Un log che sparisce quando
+#      sparisce l'utente non è un log. Restano con `user_id = NULL`, e le
+#      occorrenze dell'indirizzo nel dettaglio vengono sostituite, altrimenti
+#      la cancellazione sarebbe finta.
+#
+#   2. **Non cancella niente nelle app.** Il profilo locale in LSSR, ArguMap o
+#      PaperTrail resta dov'è, con il suo `borant_sub` ormai orfano. Per una
+#      cancellazione vera bisogna passare da ognuna. La pagina di conferma
+#      elenca quali, perché scoprirlo dopo significa credere di aver cancellato
+#      qualcuno e non averlo fatto.
+#
+#   3. **Chiede di riscrivere l'indirizzo.** In un elenco di trenta studenti un
+#      bottone rosso accanto al nome sbagliato è un incidente che aspetta.
+
+def _delete_blockers(db, me, u):
+    """Perché questo utente non si può cancellare, se non si può."""
+    if u is None:
+        return "Utente inesistente."
+    if u.id == me.id:
+        return "Non puoi cancellare il tuo stesso account."
+    if u.is_admin:
+        others = (db.query(User)
+                    .filter(User.is_admin.is_(True), User.is_active.is_(True),
+                            User.id != u.id).count())
+        if others == 0:
+            return ("È l'ultimo amministratore attivo. Nominane un altro "
+                    "prima, o resti fuori tu.")
+    return ""
+
+
+@router.get("/users/{uid}/delete", response_class=HTMLResponse)
+def delete_confirm(uid: int, request: Request,
+                   borant_session: str | None = Cookie(default=None),
+                   db: DbSession = Depends(get_db)):
+    sess, me, redirect = _guard(db, borant_session)
+    if redirect:
+        return redirect
+    u = db.get(User, uid)
+    blocker = _delete_blockers(db, me, u)
+    if u is None:
+        return RedirectResponse("/admin/users", status_code=303)
+
+    apps_with_grant = [db.get(App, g.app_id) for g in u.grants]
+    live_sessions = sum(1 for s in u.sessions if s.is_live())
+    audit_rows = db.query(Audit).filter(Audit.user_id == u.id).count()
+    return _page(request, db, "admin_user_delete.html", sess, me, target=u,
+                 apps_with_grant=[a for a in apps_with_grant if a],
+                 live_sessions=live_sessions, audit_rows=audit_rows,
+                 blocker=blocker,
+                 error=request.query_params.get("err", ""))
+
+
+@router.post("/users/{uid}/delete")
+def delete_user(uid: int, request: Request, confirm_email: str = Form(""),
+                csrf: str = Form(""),
+                borant_session: str | None = Cookie(default=None),
+                db: DbSession = Depends(get_db)):
+    sess, me, redirect = _guard(db, borant_session)
+    if redirect:
+        return redirect
+    u = db.get(User, uid)
+    if u is None or not _csrf_ok(sess, csrf):
+        return RedirectResponse("/admin/users", status_code=303)
+
+    blocker = _delete_blockers(db, me, u)
+    if blocker:
+        return RedirectResponse(f"/admin/users/{uid}/delete?err="
+                                f"{quote(blocker)}", status_code=303)
+
+    typed = (confirm_email or "").strip().lower()
+    if not u.email or typed != u.email.lower():
+        return RedirectResponse(
+            f"/admin/users/{uid}/delete?err="
+            f"{quote('Riscrivi esattamente l indirizzo per confermare.')}",
+            status_code=303)
+
+    subject, email, name = u.subject, u.email, u.name
+    apps_touched = [db.get(App, g.app_id).slug for g in u.grants
+                    if db.get(App, g.app_id)]
+
+    # 1. le sessioni muoiono subito, prima di toccare qualsiasi altra cosa
+    auth.revoke_all(db, u, "account_deleted")
+
+    # 2. il log resta, slegato e ripulito dall'indirizzo.
+    #
+    # Lo slegamento tocca solo le righe di questo utente, ma la ripulitura deve
+    # passare su **tutte**: un `invite.created` è registrato sotto l'admin che
+    # l'ha mandato e contiene l'indirizzo dell'invitato. Cancellare solo le
+    # proprie righe lascerebbe l'email in giro sotto il nome di qualcun altro,
+    # che è una cancellazione finta.
+    own = db.query(Audit).filter(Audit.user_id == u.id).all()
+    for row in own:
+        row.user_id = None
+    scrubbed = 0
+    for row in db.query(Audit).all():
+        detail = row.detail or ""
+        original = detail
+        if email:
+            detail = detail.replace(email, "(indirizzo rimosso)")
+        if name and len(name) > 3:      # un nome di due lettere colpirebbe di tutto
+            detail = detail.replace(name, "(nome rimosso)")
+        if detail != original:
+            row.detail = detail
+            scrubbed += 1
+    db.commit()
+
+    # 3. ciò che non ha cascade dichiarata. Gli inviti pendenti hanno
+    # `user_id` nullo — l'utente non esisteva ancora quando sono stati creati —
+    # quindi vanno presi per indirizzo, o restano lì buoni da usare.
+    db.query(AccessRequest).filter(AccessRequest.user_id == u.id).delete()
+    db.query(Token).filter(Token.user_id == u.id).delete()
+    if email:
+        db.query(Token).filter(Token.email == email).delete()
+    db.commit()
+
+    # 4. l'utente, e con lui grants, sessioni e codici di backup
+    db.delete(u)
+    db.commit()
+    auth.invalidate_registry()
+
+    # L'evento si registra con il `subject`, non con l'email: tenerla qui
+    # significherebbe cancellare l'indirizzo da ogni riga tranne quella che
+    # dice che è stato cancellato.
+    audit(db, "user.deleted", user=me, ip=_ip(request), subject=subject,
+          audit_rows_kept=len(own), audit_rows_scrubbed=scrubbed,
+          apps=apps_touched)
+    return RedirectResponse("/admin/users?deleted=1", status_code=303)

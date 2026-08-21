@@ -187,7 +187,18 @@
   </div>
 {% endif %}
 
+{% if request.query_params.get('deleted') %}
+  <div class="flash flash-ok">
+    Utente cancellato. Ricorda che <strong>le app non sono state toccate</strong>:
+    il profilo locale è ancora là dove era già entrato.
+  </div>
+{% endif %}
+
 <h2>Persone</h2>
+<p class="sub">
+  <strong>Disattiva</strong> è reversibile e conserva tutto — è quasi sempre
+  quello che serve. <strong>Cancella</strong> è definitivo e non tocca le app.
+</p>
 {% for u in rows %}
   <div class="card" id="u{{ u.id }}">
     <div class="row">
@@ -214,6 +225,9 @@
           <input type="hidden" name="csrf" value="{{ csrf }}">
           <button class="btn btn-danger btn-small" type="submit">Azzera 2FA</button>
         </form>
+        {% if u.id != user.id %}
+          <a class="btn btn-danger btn-small" href="/admin/users/{{ u.id }}/delete">Cancella…</a>
+        {% endif %}
       </div>
     </div>
 
