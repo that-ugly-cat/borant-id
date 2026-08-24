@@ -67,7 +67,9 @@ def users(request: Request, borant_session: str | None = Cookie(default=None),
     sess, me, redirect = _guard(db, borant_session)
     if redirect:
         return redirect
-    rows = db.query(User).order_by(User.created_at.desc()).all()
+    # Alfabetico per nome: con sei righe l'ordine di creazione era una lista
+    # di novita', con trenta sarebbe una lista in cui non si trova nessuno.
+    rows = db.query(User).order_by(User.name.collate("NOCASE")).all()
     pending = (db.query(Token)
                  .filter(Token.kind == "invite", Token.used_at.is_(None))
                  .order_by(Token.created_at.desc()).all())
