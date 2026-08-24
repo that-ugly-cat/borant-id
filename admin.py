@@ -79,7 +79,9 @@ def users(request: Request, borant_session: str | None = Cookie(default=None),
                  pending=[t for t in pending if t.is_live()], apps=apps,
                  requests=requests_pending,
                  invite_link=request.query_params.get("link", ""),
-                 mail_error=request.query_params.get("mailerr", ""))
+                 mail_error=request.query_params.get("mailerr", ""),
+                 pw_ok=request.query_params.get("pwok", ""),
+                 pw_err=request.query_params.get("pwerr", ""))
 
 
 @router.post("/users/invite", response_class=HTMLResponse)
@@ -166,6 +168,70 @@ def toggle_admin(uid: int, request: Request, csrf: str = Form(""),
         audit(db, "user.admin_toggled", user=me, ip=_ip(request),
               target=u.email, admin=u.is_admin)
     return RedirectResponse("/admin/users", status_code=303)
+
+
+@router.post("/users/{uid}/password")
+def set_password(uid: int, request: Request, password: str = Form(""),
+                 csrf: str = Form(""),
+                 borant_session: str | None = Cookie(default=None),
+                 db: DbSession = Depends(get_db)):
+    """Set someone's password by hand, for when the reset mail is not a road.
+
+    The mail-based reset at /reset is the normal way and stays the normal way:
+    it needs no administrator and the new password passes through nobody. This
+    is for the cases where that road is closed — a shared account nobody reads
+    mail for, an address that bounces, an account made in the `create` mode of
+    §18 whose one-time password went missing.
+
+    Three things it does besides writing the hash, and none of them is
+    optional:
+
+      * **Every session of that user dies**, this admin's own excepted when the
+        admin is the user. A password change that leaves the old sessions alive
+        does not lock anyone out of anything, which is usually the entire point
+        of changing it.
+      * **The owner is told by mail**, exactly as for the second factor: an
+        administrator quietly changing someone's password is the move an
+        attacker would want, so it does not get to be quiet.
+      * **A short password is refused out loud.** Silently ignoring it would
+        leave the admin believing a password was set that was not, which is a
+        worse failure than an error message.
+
+    What it deliberately does NOT do: touch the second factor, the ORCID link,
+    or the verified state of the address. Those have their own buttons, and
+    folding them in here would make one click mean four things.
+    """
+    sess, me, redirect = _guard(db, borant_session)
+    if redirect:
+        return redirect
+    u = db.get(User, uid)
+    if u is None or not _csrf_ok(sess, csrf):
+        return RedirectResponse("/admin/users", status_code=303)
+    if len(password) < 10:
+        return RedirectResponse(
+            f"/admin/users?pwerr={quote(u.email or u.display)}#u{u.id}",
+            status_code=303)
+
+    u.password_hash = auth.hash_password(password)
+    db.commit()
+    # keep=sess so an admin changing their own password is not logged out by
+    # the act of changing it.
+    n = auth.revoke_all(db, u, "password_set_by_admin",
+                        keep=sess if u.id == me.id else None)
+    auth.invalidate_user(u.id)
+    audit(db, "user.password_set_by_admin", user=me, ip=_ip(request),
+          target=u.email, sessions=n)
+    if u.email:
+        closed = ("There were no open sessions." if n == 0 else
+                  "One open session was closed." if n == 1 else
+                  f"{n} open sessions were closed.")
+        mailer.send_security_notice(
+            db, u.email, "Password changed by an administrator",
+            f"It was changed by {me.display}. {closed} If this was not "
+            "expected, say so now.")
+    return RedirectResponse(
+        f"/admin/users?pwok={quote(u.email or u.display)}#u{u.id}",
+        status_code=303)
 
 
 @router.post("/users/{uid}/reset-2fa")

@@ -12,6 +12,20 @@
   </div>
 {% endif %}
 
+{% if pw_ok %}
+  <div class="flash flash-ok">
+    Password di <strong>{{ pw_ok }}</strong> cambiata. Le sue sessioni aperte
+    sono state chiuse, e gliel'abbiamo scritto.
+  </div>
+{% endif %}
+
+{% if pw_err %}
+  <div class="flash flash-error">
+    Password di <strong>{{ pw_err }}</strong> <strong>non</strong> cambiata:
+    ne servono almeno dieci caratteri.
+  </div>
+{% endif %}
+
 {% if requests %}
   <h2>Richieste di accesso ({{ requests | length }})</h2>
   <div class="card card-danger">
@@ -198,6 +212,10 @@
 <p class="sub">
   <strong>Disattiva</strong> è reversibile e conserva tutto — è quasi sempre
   quello che serve. <strong>Cancella</strong> è definitivo e non tocca le app.
+  <strong>Imposta</strong> una password serve quando il reset per posta non è
+  una strada: un account condiviso di cui nessuno legge la casella, un
+  indirizzo che rimbalza, una password generata e persa. Chiude tutte le
+  sessioni di quella persona e gliela manda a dire.
 </p>
 {% for u in rows %}
   <div class="card" id="u{{ u.id }}">
@@ -220,6 +238,14 @@
         <form method="post" action="/admin/users/{{ u.id }}/toggle-admin" class="inline">
           <input type="hidden" name="csrf" value="{{ csrf }}">
           <button class="btn btn-small" type="submit">{{ 'Togli admin' if u.is_admin else 'Rendi admin' }}</button>
+        </form>
+        <form method="post" action="/admin/users/{{ u.id }}/password" class="inline"
+              onsubmit="return confirm('Cambiare la password di {{ u.email }}? Le sue sessioni aperte verranno chiuse e riceverà una mail.')">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="password" name="password" minlength="10" required
+                 autocomplete="new-password" placeholder="nuova password"
+                 style="width:11rem">
+          <button class="btn btn-small" type="submit">Imposta</button>
         </form>
         <form method="post" action="/admin/users/{{ u.id }}/reset-2fa" class="inline">
           <input type="hidden" name="csrf" value="{{ csrf }}">
