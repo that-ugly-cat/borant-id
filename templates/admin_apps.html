@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}App — {{ site_name }}{% endblock %}
+{% block container_class %} wide{% endblock %}
 {% block body %}
 <h1>App e policy</h1>
 <p class="sub">
@@ -8,7 +9,26 @@
   domande con due proprietari.
 </p>
 
-<h2>Registra un'app</h2>
+<div class="adminlayout">
+<aside class="sidenav">
+  <p class="lead">In questa pagina</p>
+  <ul>
+    <li><a href="#registra">Registra</a></li>
+    <li><a href="#elenco">App <span class="n">{{ rows | length }}</span></a></li>
+  </ul>
+  <p class="lead" style="margin-top:18px">App</p>
+  <ul>
+    {% for a in rows %}
+      <li><a href="#a{{ a.id }}">{{ a.name }}
+        {% if a.policies | length > 1 %}<span class="n">{{ a.policies | length }}</span>{% endif %}
+      </a></li>
+    {% endfor %}
+  </ul>
+</aside>
+
+<div>
+
+<h2 id="registra">Registra un'app</h2>
 <div class="card">
   <form method="post" action="/admin/apps">
     <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -33,19 +53,29 @@
   </form>
 </div>
 
+<h2 id="elenco">App registrate</h2>
 {% for a in rows %}
-  <div class="card" id="a{{ a.id }}">
-    <div class="row">
-      <div style="flex:2 1 18rem">
+  {% set due = a.policies | selectattr('level', 'equalto', 'two_factor') | list | length %}
+  <details class="exp" id="a{{ a.id }}">
+    <summary>
+      <span class="sum-line">
         <strong>{{ a.name }}</strong>
         {% if not a.active %}<span class="badge badge-muted">disattivata</span>{% endif %}
         {% if a.default_access == 'any_authenticated' %}
           <span class="badge badge-muted">aperta a tutti gli autenticati</span>
         {% endif %}
-        <br><span class="mono muted">{{ a.host }}</span>
-        {% if a.description %}<br><span class="muted">{{ a.description }}</span>{% endif %}
-      </div>
-      <div class="fixed">
+        {% if due %}<span class="badge badge-warn">{{ due }} path a due fattori</span>{% endif %}
+        {% if a.role_list() %}
+          <span class="badge badge-muted">{{ a.role_list() | join(' · ') }}</span>
+        {% endif %}
+      </span>
+      <span class="sum-line sum-side">
+        <span class="mono">{{ a.host }}</span>
+        {% if a.description %}<span>{{ a.description }}</span>{% endif %}
+      </span>
+    </summary>
+    <div class="exp-body">
+    <div class="actions">
         <form method="post" action="/admin/apps/{{ a.id }}/toggle" class="inline">
           <input type="hidden" name="csrf" value="{{ csrf }}">
           <button class="btn btn-small" type="submit">{{ 'Disattiva' if a.active else 'Riattiva' }}</button>
@@ -58,7 +88,6 @@
             {{ 'Richiedi grant' if a.default_access == 'any_authenticated' else 'Apri a tutti' }}
           </button>
         </form>
-      </div>
     </div>
 
     <h3>Ruoli</h3>
@@ -129,6 +158,31 @@
       Vince il prefisso più lungo che combacia, confrontato su path
       normalizzato e in minuscolo.
     </p>
-  </div>
+    </div>
+  </details>
 {% endfor %}
+
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Stessa ragione della pagina utenti: un'ancora che atterra su un accordion
+// chiuso sembra non aver fatto niente.
+(function () {
+  function apriBersaglio() {
+    var h = location.hash;
+    if (!h || h.length < 2) return;
+    var el;
+    try { el = document.querySelector(h); } catch (e) { return; }
+    if (!el) return;
+    var d = el.tagName === 'DETAILS' ? el : el.closest('details');
+    if (d) d.open = true;
+    el.scrollIntoView();
+  }
+  window.addEventListener('hashchange', apriBersaglio);
+  apriBersaglio();
+})();
+</script>
 {% endblock %}

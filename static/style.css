@@ -207,3 +207,75 @@ footer {
 }
 
 .narrow { max-width: 460px; margin: 0 auto; }
+
+/* ── layout admin: barra delle sezioni a sinistra ──────────────────────────
+   Le pagine utenti e app sono lunghe e fatte di sezioni indipendenti, non di
+   un discorso da leggere in ordine: la barra serve a saltare, non a orientarsi.
+   Sotto gli 860px diventa una riga di pillole, perché una colonna di 190px su
+   un telefono e' spazio tolto al contenuto. */
+
+.container.wide { max-width: 1180px; }
+
+.adminlayout {
+  display: grid; grid-template-columns: 190px minmax(0, 1fr);
+  gap: 28px; align-items: start;
+}
+.sidenav { position: sticky; top: 16px; }
+.sidenav .lead {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--muted-3); margin: 4px 0 8px 12px;
+}
+.sidenav ul { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--border); }
+.sidenav a {
+  display: flex; justify-content: space-between; gap: 8px; align-items: baseline;
+  padding: 6px 0 6px 12px; margin-left: -1px;
+  border-left: 2px solid transparent; color: var(--muted);
+  text-decoration: none; font-size: 14px;
+}
+.sidenav a:hover { color: var(--text); border-left-color: var(--accent); }
+.sidenav a.warn { color: var(--warn); }
+.sidenav .n { color: var(--muted-3); font-size: 12px; }
+
+/* Un salto a un'ancora non deve incollare il titolo al bordo. */
+[id] { scroll-margin-top: 16px; }
+
+@media (max-width: 860px) {
+  .adminlayout { grid-template-columns: 1fr; gap: 0; }
+  .sidenav { position: static; margin-bottom: 14px; }
+  .sidenav .lead { display: none; }
+  .sidenav ul { display: flex; flex-wrap: wrap; gap: 6px; border-left: none; }
+  .sidenav a {
+    border-left: none; border: 1px solid var(--border);
+    border-radius: 99px; padding: 4px 11px; margin: 0; font-size: 13px;
+  }
+}
+
+/* ── expander ─────────────────────────────────────────────────────────────
+   Una scheda utente e' alta quanto il numero di app del perimetro, e undici
+   schede aperte sono una pagina in cui non si trova niente. Chiuse di default:
+   il sommario dice abbastanza per riconoscere la riga giusta senza aprirla. */
+
+details.exp {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); margin: 10px 0;
+}
+details.exp > summary {
+  list-style: none; cursor: pointer; user-select: none;
+  padding: 12px 16px 12px 34px; position: relative; border-radius: var(--radius);
+}
+details.exp > summary::-webkit-details-marker { display: none; }
+details.exp > summary::before {
+  content: "\203A"; position: absolute; left: 15px; top: 50%;
+  translate: 0 -50%; color: var(--muted-2); font-size: 18px; line-height: 1;
+  transition: rotate .15s;
+}
+details.exp[open] > summary::before { rotate: 90deg; }
+details.exp > summary:hover { background: var(--card-hover); }
+details.exp[open] > summary {
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+details.exp .exp-body { padding: 2px 20px 18px; }
+.sum-line { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.sum-side { color: var(--muted-2); font-size: 13px; }
+.sum-side .mono { font-size: 12px; }

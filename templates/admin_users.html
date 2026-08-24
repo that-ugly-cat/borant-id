@@ -1,8 +1,27 @@
 {% extends "base.html" %}
 {% block title %}Utenti — {{ site_name }}{% endblock %}
+{% block container_class %} wide{% endblock %}
 {% block body %}
 <h1>Utenti</h1>
 <p class="sub">Chi esiste, e a quali app può entrare.</p>
+
+<div class="adminlayout">
+<aside class="sidenav">
+  <p class="lead">In questa pagina</p>
+  <ul>
+    {% if requests %}
+      <li><a href="#richieste" class="warn">Richieste <span class="n">{{ requests | length }}</span></a></li>
+    {% endif %}
+    <li><a href="#invita">Invita</a></li>
+    <li><a href="#blocco">In blocco</a></li>
+    {% if pending %}
+      <li><a href="#inviti">Inviti aperti <span class="n">{{ pending | length }}</span></a></li>
+    {% endif %}
+    <li><a href="#persone">Persone <span class="n">{{ rows | length }}</span></a></li>
+  </ul>
+</aside>
+
+<div>
 
 {% if invite_link %}
   <div class="flash flash-error">
@@ -27,7 +46,7 @@
 {% endif %}
 
 {% if requests %}
-  <h2>Richieste di accesso ({{ requests | length }})</h2>
+  <h2 id="richieste">Richieste di accesso ({{ requests | length }})</h2>
   <div class="card card-danger">
     <div class="table-wrap">
       <table class="table">
@@ -77,7 +96,7 @@
   </div>
 {% endif %}
 
-<h2>Invita</h2>
+<h2 id="invita">Invita</h2>
 <div class="card">
   <form method="post" action="/admin/users/invite">
     <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -128,7 +147,7 @@
   </form>
 </div>
 
-<h2>Creazione in blocco</h2>
+<h2 id="blocco">Creazione in blocco</h2>
 <div class="card">
   <form method="post" action="/admin/users/batch">
     <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -183,7 +202,7 @@
 </div>
 
 {% if pending %}
-  <h2>Inviti in attesa</h2>
+  <h2 id="inviti">Inviti in attesa</h2>
   <div class="card">
     <div class="table-wrap">
       <table class="table">
@@ -208,7 +227,7 @@
   </div>
 {% endif %}
 
-<h2>Persone</h2>
+<h2 id="persone">Persone</h2>
 <p class="sub">
   <strong>Disattiva</strong> è reversibile e conserva tutto — è quasi sempre
   quello che serve. <strong>Cancella</strong> è definitivo e non tocca le app.
@@ -218,19 +237,32 @@
   sessioni di quella persona e gliela manda a dire.
 </p>
 {% for u in rows %}
-  <div class="card" id="u{{ u.id }}">
-    <div class="row">
-      <div style="flex:2 1 18rem">
+  <details class="exp" id="u{{ u.id }}">
+    <summary>
+      <span class="sum-line">
         <strong>{{ u.display }}</strong>
         {% if u.is_admin %}<span class="badge badge-warn">admin</span>{% endif %}
         {% if not u.is_active %}<span class="badge badge-muted">disattivato</span>{% endif %}
         {% if u.has_totp %}<span class="badge badge-ok">2FA</span>{% endif %}
-        <br>
-        <span class="muted">{{ u.email }}</span>
-        {% if u.orcid %}<br><span class="mono muted">{{ u.orcid }}</span>{% endif %}
-        <br><span class="muted mono" style="font-size:.78rem">{{ u.subject }}</span>
-      </div>
-      <div class="fixed">
+        {% set n = u.grants | length %}
+        {% if u.is_admin %}
+          {# Gli admin bypassano i grant: contarli direbbe il falso, e
+             «nessun accesso» accanto a «admin» sarebbe l'opposto del vero. #}
+          <span class="badge badge-muted">entra ovunque</span>
+        {% elif n %}
+          <span class="badge badge-muted">{{ n }} app</span>
+        {% else %}
+          <span class="badge badge-muted">nessun accesso</span>
+        {% endif %}
+      </span>
+      <span class="sum-line sum-side">
+        <span>{{ u.email }}</span>
+        {% if u.orcid %}<span class="mono">{{ u.orcid }}</span>{% endif %}
+      </span>
+    </summary>
+    <div class="exp-body">
+    <p class="muted mono small" style="margin-top:10px">{{ u.subject }}</p>
+    <div class="actions">
         <form method="post" action="/admin/users/{{ u.id }}/toggle-active" class="inline">
           <input type="hidden" name="csrf" value="{{ csrf }}">
           <button class="btn btn-small" type="submit">{{ 'Disattiva' if u.is_active else 'Riattiva' }}</button>
@@ -254,7 +286,6 @@
         {% if u.id != user.id %}
           <a class="btn btn-danger btn-small" href="/admin/users/{{ u.id }}/delete">Cancella…</a>
         {% endif %}
-      </div>
     </div>
 
     <h3>App</h3>
@@ -306,6 +337,31 @@
         {% endfor %}
       </table>
     </div>
-  </div>
+    </div>
+  </details>
 {% endfor %}
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Le schede sono chiuse di default, quindi un link con l'ancora — il ritorno
+// dopo aver impostato una password, per dire — atterrerebbe su un accordion
+// chiuso e sembrerebbe non aver fatto niente. Qui l'ancora apre la sua scheda.
+(function () {
+  function apriBersaglio() {
+    var h = location.hash;
+    if (!h || h.length < 2) return;
+    var el;
+    try { el = document.querySelector(h); } catch (e) { return; }
+    if (!el) return;
+    var d = el.tagName === 'DETAILS' ? el : el.closest('details');
+    if (d) d.open = true;
+    el.scrollIntoView();
+  }
+  window.addEventListener('hashchange', apriBersaglio);
+  apriBersaglio();
+})();
+</script>
 {% endblock %}

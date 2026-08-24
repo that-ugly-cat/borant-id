@@ -19,3 +19,6 @@ SPEC.md
 
 # password del primo admin, scritta da seed.py sul server
 primo-admin.txt
+
+# DB e chiave dell'anteprima locale (dev-run.py)
+.devdata/
