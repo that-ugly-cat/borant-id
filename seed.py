@@ -35,10 +35,16 @@ PERIMETER = [
     # terzo. `full` e `admin` usano la chiave Anthropic centrale.
     ("roompulse",   "RoomPulse",   "roompulse.borant.eu",   [],
      "free, full, admin"),
+    # `admin` dal 24/8/2026: e' un booleano, ma un booleano che il codice legge
+    # dall'hint vale un vocabolario di una parola. Apre la gestione utenti, non
+    # le funzioni del prodotto — quelle le ha chiunque abbia un grant.
     ("lssr",        "LSSR",        "lssr.borant.eu",        [],
-     ""),                        # booleano (owner + is_admin), non ha ruoli
+     "admin"),
+    # `admin` dal 24/8/2026. Resta vero che il ruolo **di dominio** e' per
+    # workspace e un hint globale non saprebbe rispondere a «read su quale»:
+    # questo `admin` e' l'altro flag, quello che apre /admin/users.
     ("papertrail",  "PaperTrail",  "papertrail.borant.eu",  [],
-     ""),                        # il ruolo è PER WORKSPACE: «read» su quale?
+     "admin"),                   # il ruolo di dominio è PER WORKSPACE: «read» su quale?
                                  # Niente `2F` su /admin (deciso il 21/8/2026):
                                  # quel pannello crea utenti e workspace, non
                                  # apre dati che il resto dell'app non apra già.
@@ -50,8 +56,10 @@ PERIMETER = [
     # fattore se ne andrebbe con lui, quindi qui il gate non lo aggiunge, lo
     # eredita. E va su `/` perché le chiavi Anthropic per-utente si impostano
     # da `/profile`: un livello si mette su una classe di segreti, non su un URL.
+    # `admin` dal 24/8/2026: apre /api/admin/*, cioe' la gestione utenti e il
+    # reset del secondo fattore.
     ("autocode",    "AutoCode",    "autocode.borant.eu",    ["/"],
-     ""),                        # booleano is_admin. Attenzione all'omonimo:
+     "admin"),                   # Attenzione all'omonimo:
                                  # in AutoCode «roles» sono i ruoli dei
                                  # parlanti nelle trascrizioni, non i permessi
     # Riempito il 24/8/2026, quando ArguMap ha imparato a leggere l'hint. RBAC
@@ -77,7 +85,9 @@ PERIMETER = [
                                  # servizio lasciando aperta quella principale.
     ("grantradar",  "Grant Radar", "grantradar.borant.eu",  [], ""),
     ("onopedia",    "Onopedia",    "wiki.borant.eu",        [], ""),
-    ("topictracker", "TopicTracker", "topictracker.borant.eu", [], ""),
+    # `admin` dal 24/8/2026: apre /admin/users. Un non-admin crea run
+    # tranquillamente, quindi qui il flag non e' la differenza fra usare e non.
+    ("topictracker", "TopicTracker", "topictracker.borant.eu", [], "admin"),
     ("paper2md",    "paper2md",    "paper2md.borant.eu",    [], ""),
 ]
 
