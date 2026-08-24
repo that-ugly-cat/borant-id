@@ -40,7 +40,14 @@ PERIMETER = [
                                  # quel pannello crea utenti e workspace, non
                                  # apre dati che il resto dell'app non apra già.
                                  # Se torna qui, un riseeding la rimette.
-    ("autocode",    "AutoCode",    "autocode.borant.eu",    ["/admin", "/api/admin"],
+    # `/` e non `/admin`, dal 24/8/2026, per la stessa ragione di Survey e con
+    # una prova in più: il secondo fattore di AutoCode è **cablato davvero** —
+    # `POST /api/auth/login` dà solo un pending token da dieci minuti finché
+    # non si passa il TOTP. In `gateway` il login locale si spegne e quel
+    # fattore se ne andrebbe con lui, quindi qui il gate non lo aggiunge, lo
+    # eredita. E va su `/` perché le chiavi Anthropic per-utente si impostano
+    # da `/profile`: un livello si mette su una classe di segreti, non su un URL.
+    ("autocode",    "AutoCode",    "autocode.borant.eu",    ["/"],
      ""),                        # booleano is_admin. Attenzione all'omonimo:
                                  # in AutoCode «roles» sono i ruoli dei
                                  # parlanti nelle trascrizioni, non i permessi
