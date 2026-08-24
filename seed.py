@@ -30,6 +30,9 @@ from models import App, Policy, SessionLocal, TWO_FACTOR, User, init_db, utcnow
 # leggono nessun header, quindi per loro l'hint non esiste proprio.
 PERIMETER = [
     # categoria B — provisioning
+    # Tutti e tre onorati dal 24/8/2026: prima il codice ne accettava solo
+    # `free`, cioe' il pannello offriva un menu di cui il codice guardava un
+    # terzo. `full` e `admin` usano la chiave Anthropic centrale.
     ("roompulse",   "RoomPulse",   "roompulse.borant.eu",   [],
      "free, full, admin"),
     ("lssr",        "LSSR",        "lssr.borant.eu",        [],
@@ -51,10 +54,14 @@ PERIMETER = [
      ""),                        # booleano is_admin. Attenzione all'omonimo:
                                  # in AutoCode «roles» sono i ruoli dei
                                  # parlanti nelle trascrizioni, non i permessi
+    # Riempito il 24/8/2026, quando ArguMap ha imparato a leggere l'hint. RBAC
+    # vero, tabelle roles/permissions: questa lista e' una **fotografia** e va
+    # rifatta se si crea un ruolo nuovo — e' il prezzo di non far chiamare le
+    # app dal gate, che sarebbe l'unica alternativa sempre esatta.
+    # `basic` e' l'unico che non ha il permesso `pipeline`, cioe' l'unico che
+    # non spende: gli altri quattro sono onorati ma scrivono un warning.
     ("argumap",     "ArguMap",     "argumap.borant.eu",     ["/admin"],
-     ""),                        # RBAC vero, tabelle roles/permissions: da
-                                 # riempire alla migrazione, sapendo che
-                                 # invecchia quando si crea un ruolo nuovo
+     "basic, standard, full, teacher, admin"),
 
     # categoria A — solo la porta, nessun provisioning, nessun hint
     # `/` e non `/admin`: Survey impone il TOTP da sé su qualunque pagina da
