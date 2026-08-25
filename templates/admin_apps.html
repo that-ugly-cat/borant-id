@@ -1,22 +1,18 @@
 {% extends "base.html" %}
-{% block title %}App — {{ site_name }}{% endblock %}
+{% block title %}{{ t.nav_apps }} — {{ site_name }}{% endblock %}
 {% block container_class %} wide{% endblock %}
 {% block body %}
-<h1>App e policy</h1>
-<p class="sub">
-  Qui si decide <em>che livello serve su quale path</em>. Se un path passi dal
-  gate oppure resti pubblico lo decide Caddy, non questa pagina: sono due
-  domande con due proprietari.
-</p>
+<h1>{{ t.adm_apps_title }}</h1>
+<p class="sub">{{ t.adm_apps_sub | safe }}</p>
 
 <div class="adminlayout">
 <aside class="sidenav">
-  <p class="lead">In questa pagina</p>
+  <p class="lead">{{ t.adm_in_page }}</p>
   <ul>
-    <li><a href="#registra">Registra</a></li>
-    <li><a href="#elenco">App <span class="n">{{ rows | length }}</span></a></li>
+    <li><a href="#registra">{{ t.adm_apps_nav_register }}</a></li>
+    <li><a href="#elenco">{{ t.nav_apps }} <span class="n">{{ rows | length }}</span></a></li>
   </ul>
-  <p class="lead" style="margin-top:18px">App</p>
+  <p class="lead" style="margin-top:18px">{{ t.nav_apps }}</p>
   <ul>
     {% for a in rows %}
       <li><a href="#a{{ a.id }}">{{ a.name }}
@@ -28,43 +24,46 @@
 
 <div>
 
-<h2 id="registra">Registra un'app</h2>
+<h2 id="registra">{{ t.adm_apps_h_register }}</h2>
 <div class="card">
   <form method="post" action="/admin/apps">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="row">
-      <div><label for="slug">Slug</label><input id="slug" name="slug" required></div>
-      <div><label for="name">Nome</label><input id="name" name="name"></div>
-      <div><label for="host">Host</label><input id="host" name="host" class="mono"
+      <div><label for="slug">{{ t.adm_apps_slug }}</label><input id="slug" name="slug" required></div>
+      <div><label for="name">{{ t.adm_cfg_name }}</label><input id="name" name="name"></div>
+      <div><label for="host">{{ t.adm_cfg_host }}</label><input id="host" name="host" class="mono"
              placeholder="lssr.borant.eu" required></div>
       <div>
-        <label for="default_access">Accesso</label>
+        <label for="default_access">{{ t.adm_apps_access }}</label>
         <select id="default_access" name="default_access">
-          <option value="grant_required">solo chi ha un grant</option>
-          <option value="any_authenticated">chiunque sia autenticato</option>
+          <option value="grant_required">{{ t.adm_apps_acc_grant }}</option>
+          <option value="any_authenticated">{{ t.adm_apps_acc_any }}</option>
         </select>
       </div>
     </div>
-    <label for="description">Descrizione</label>
+    <label for="description">{{ t.adm_apps_desc }}</label>
     <input id="description" name="description">
-    <label for="roles">Ruoli usati da questa app (separati da virgola, facoltativo)</label>
-    <input id="roles" name="roles" placeholder="es. free, full, admin">
-    <div class="actions"><button class="btn-primary" type="submit">Registra</button></div>
+    <label for="roles">{{ t.adm_apps_roles_l }}</label>
+    <input id="roles" name="roles" placeholder="{{ t.adm_apps_roles_ph }}">
+    <div class="actions"><button class="btn-primary" type="submit">{{ t.adm_apps_nav_register }}</button></div>
   </form>
 </div>
 
-<h2 id="elenco">App registrate</h2>
+<h2 id="elenco">{{ t.adm_apps_h_list }}</h2>
 {% for a in rows %}
   {% set due = a.policies | selectattr('level', 'equalto', 'two_factor') | list | length %}
   <details class="exp" id="a{{ a.id }}">
     <summary>
       <span class="sum-line">
         <strong>{{ a.name }}</strong>
-        {% if not a.active %}<span class="badge badge-muted">disattivata</span>{% endif %}
+        {% if not a.active %}<span class="badge badge-muted">{{ t.adm_apps_off }}</span>{% endif %}
         {% if a.default_access == 'any_authenticated' %}
-          <span class="badge badge-muted">aperta a tutti gli autenticati</span>
+          <span class="badge badge-muted">{{ t.adm_apps_open_all }}</span>
         {% endif %}
-        {% if due %}<span class="badge badge-warn">{{ due }} path a due fattori</span>{% endif %}
+        {% if due %}
+          <span class="badge badge-warn">{{ (t.adm_apps_2f_paths_one
+            if singular(due, t) else t.adm_apps_2f_paths) | format(n=due) }}</span>
+        {% endif %}
         {% if a.role_list() %}
           <span class="badge badge-muted">{{ a.role_list() | join(' · ') }}</span>
         {% endif %}
@@ -78,48 +77,43 @@
     <div class="actions">
         <form method="post" action="/admin/apps/{{ a.id }}/toggle" class="inline">
           <input type="hidden" name="csrf" value="{{ csrf }}">
-          <button class="btn btn-small" type="submit">{{ 'Disattiva' if a.active else 'Riattiva' }}</button>
+          <button class="btn btn-small" type="submit">
+            {{ t.adm_deactivate if a.active else t.adm_reactivate }}
+          </button>
         </form>
         <form method="post" action="/admin/apps/{{ a.id }}/access" class="inline">
           <input type="hidden" name="csrf" value="{{ csrf }}">
           <input type="hidden" name="default_access"
                  value="{{ 'grant_required' if a.default_access == 'any_authenticated' else 'any_authenticated' }}">
           <button class="btn btn-small" type="submit">
-            {{ 'Richiedi grant' if a.default_access == 'any_authenticated' else 'Apri a tutti' }}
+            {{ t.adm_apps_require_grant if a.default_access == 'any_authenticated'
+               else t.adm_apps_open_all_btn }}
           </button>
         </form>
     </div>
 
-    <h3>Ruoli</h3>
+    <h3>{{ t.adm_apps_h_roles }}</h3>
     <form method="post" action="/admin/apps/{{ a.id }}/roles" class="row">
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <div>
-        <input name="roles" value="{{ a.roles }}"
-               placeholder="vuoto = questa app non ha ruoli, e il campo sparisce dalle form">
+        <input name="roles" value="{{ a.roles }}" placeholder="{{ t.adm_apps_roles_ph2 }}">
       </div>
-      <div class="fixed"><button class="btn btn-small" type="submit">Salva ruoli</button></div>
+      <div class="fixed"><button class="btn btn-small" type="submit">{{ t.adm_apps_save_roles }}</button></div>
     </form>
-    <p class="note">
-      Riempie il menu del campo «ruolo suggerito» nella form degli inviti e dei
-      grant, e basta: il gate non li interpreta e non li impone, perché il
-      vocabolario di dominio è dell'app. <strong>Vuoto è una risposta</strong>,
-      non una dimenticanza — per le app che hanno un booleano invece dei ruoli
-      il campo non compare affatto, così non c'è niente da ricordare e niente
-      da sbagliare. Si riempie al momento di gatare l'app, leggendo il
-      vocabolario vero dal suo codice.
-    </p>
+    <p class="note">{{ t.adm_apps_roles_note | safe }}</p>
 
-    <h3>Policy per path</h3>
+    <h3>{{ t.adm_apps_h_policy }}</h3>
     <div class="table-wrap">
       <table class="table">
-        <tr><th>Prefisso</th><th>Livello</th><th>Elevazione valida (min)</th><th>Nota</th><th></th></tr>
+        <tr><th>{{ t.adm_col_prefix }}</th><th>{{ t.profile_s_level }}</th>
+            <th>{{ t.adm_col_elevation }}</th><th>{{ t.adm_col_note }}</th><th></th></tr>
         {% for p in a.policies|sort(attribute='path_prefix') %}
           <tr>
             <td class="mono">{{ p.path_prefix }}</td>
             <td>
               {% if p.level == 'two_factor' %}
-                <span class="badge badge-warn">due fattori</span>
-              {% else %}<span class="badge badge-muted">un fattore</span>{% endif %}
+                <span class="badge badge-warn">{{ t.profile_s_two }}</span>
+              {% else %}<span class="badge badge-muted">{{ t.profile_s_one }}</span>{% endif %}
             </td>
             <td class="muted">{{ p.max_age_minutes or '—' }}</td>
             <td class="muted">{{ p.note }}</td>
@@ -128,7 +122,9 @@
                 <form method="post" action="/admin/apps/{{ a.id }}/policy" class="inline">
                   <input type="hidden" name="csrf" value="{{ csrf }}">
                   <input type="hidden" name="policy_id" value="{{ p.id }}">
-                  <button class="btn btn-danger btn-small" type="submit" name="remove" value="1">Togli</button>
+                  <button class="btn btn-danger btn-small" type="submit" name="remove" value="1">
+                    {{ t.adm_apps_remove }}
+                  </button>
                 </form>
               {% endif %}
             </td>
@@ -140,24 +136,24 @@
     <form method="post" action="/admin/apps/{{ a.id }}/policy">
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <div class="row">
-        <div><label>Prefisso</label><input name="path_prefix" class="mono" value="/admin"></div>
+        <div><label>{{ t.adm_col_prefix }}</label><input name="path_prefix" class="mono" value="/admin"></div>
         <div>
-          <label>Livello</label>
+          <label>{{ t.profile_s_level }}</label>
           <select name="level">
             {% for l in levels %}
-              <option value="{{ l }}">{{ 'due fattori' if l == 'two_factor' else 'un fattore' }}</option>
+              <option value="{{ l }}">
+                {{ t.profile_s_two if l == 'two_factor' else t.profile_s_one }}
+              </option>
             {% endfor %}
           </select>
         </div>
-        <div><label>Elevazione valida (min)</label><input name="max_age" placeholder="vuoto = tutta la sessione"></div>
-        <div><label>Nota</label><input name="note"></div>
-        <div class="fixed"><button class="btn" type="submit">Salva policy</button></div>
+        <div><label>{{ t.adm_col_elevation }}</label>
+          <input name="max_age" placeholder="{{ t.adm_apps_maxage_ph }}"></div>
+        <div><label>{{ t.adm_col_note }}</label><input name="note"></div>
+        <div class="fixed"><button class="btn" type="submit">{{ t.adm_apps_save_policy }}</button></div>
       </div>
     </form>
-    <p class="note" style="margin-bottom:0">
-      Vince il prefisso più lungo che combacia, confrontato su path
-      normalizzato e in minuscolo.
-    </p>
+    <p class="note" style="margin-bottom:0">{{ t.adm_apps_policy_note }}</p>
     </div>
   </details>
 {% endfor %}

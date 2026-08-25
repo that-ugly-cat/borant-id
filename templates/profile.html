@@ -87,9 +87,9 @@
       </tr>
       {% for s in live %}
         <tr>
-          <td>{{ s.authed_at.strftime('%d/%m/%Y %H:%M') }}{% if s.id == sess.id %}
+          <td>{{ s.authed_at.strftime(t.fmt_datetime) }}{% if s.id == sess.id %}
               <span class="badge badge-ok">{{ t.profile_s_this }}</span>{% endif %}</td>
-          <td>{{ s.last_seen_at.strftime('%d/%m %H:%M') }}</td>
+          <td>{{ s.last_seen_at.strftime(t.fmt_datetime_short) }}</td>
           <td class="mono">{{ s.ip }}<br><span class="muted">{{ s.user_agent[:60] }}</span></td>
           <td>
             {% if s.elevated_at %}<span class="badge badge-warn">{{ t.profile_s_two }}</span>

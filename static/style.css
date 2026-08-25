@@ -240,7 +240,14 @@ footer {
 [id] { scroll-margin-top: 16px; }
 
 @media (max-width: 860px) {
-  .adminlayout { grid-template-columns: 1fr; gap: 0; }
+  /* `minmax(0, 1fr)` e non `1fr`, per la stessa ragione della riga a due
+     colonne qui sopra: il minimo implicito di `1fr` e' `auto`, cioe' la
+     larghezza minima del contenuto, e una colonna che non puo' scendere sotto
+     il suo contenuto spinge fuori la pagina invece di lasciar scorrere le
+     tabelle. Si vede solo quando il testo si allunga: in italiano il pannello
+     ci arrivava vicino, in tedesco lo superava di 37px su uno schermo da
+     375. Verificato il 25 ago 2026, tutte e quattro le lingue a 0. */
+  .adminlayout { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .sidenav { position: static; margin-bottom: 14px; }
   .sidenav .lead { display: none; }
   .sidenav ul { display: flex; flex-wrap: wrap; gap: 6px; border-left: none; }

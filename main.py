@@ -49,6 +49,10 @@ app = FastAPI(title="Borant ID", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=os.path.join(BASE, "static")),
           name="static")
 templates = Jinja2Templates(directory=os.path.join(BASE, "templates"))
+# Un errore del mailer arriva come codice e va reso in lingua: serve nei
+# template accanto a `t`, non in una variabile di contesto per pagina.
+templates.env.globals["mail_error"] = locales.mail_error
+templates.env.globals["singular"] = locales.singular
 
 init_db()
 
@@ -257,7 +261,9 @@ def verify(request: Request,
         # Fail closed, and leave a trace: a host behind the gate with no row in
         # `apps` is a configuration mistake that would otherwise be silent.
         audit(db, "verify.unknown_host", user=d.user, ip=ip, host=host)
-        return PlainTextResponse("Host non registrato in Borant ID",
+        # Parla a chi legge, non a chi ha configurato: la persona davanti allo
+        # schermo non può fare niente per rimediare, ma può dirlo a qualcuno.
+        return PlainTextResponse(tr(request)["gate_unknown_host"],
                                  status_code=403)
 
     if d.outcome == "forbidden":
@@ -568,11 +574,18 @@ def orcid_callback(request: Request, code: str = "", state: str = "",
                     title=t["orcid_fail_title"], body=t["orcid_fail_body"],
                     back="/login")
 
-    data, err = orcid.exchange(code, _redirect_uri(db))
+    data, reason, detail = orcid.exchange(code, _redirect_uri(db))
     if data is None:
-        audit(db, "orcid.exchange_failed", ip=ip, error=err)
+        audit(db, "orcid.exchange_failed", ip=ip,
+              error=f"{reason}: {detail}" if detail else reason)
+        # La frase è tradotta, il dettaglio no — ed è giusto così: `ConnectError`
+        # e `503` non sono di nessuna lingua, e sono la sola cosa che serve a chi
+        # riceve la segnalazione.
+        body = t.get(f"orcid_err_{reason}", t["orcid_fail_body"])
         return page(request, db, "message.html", None, None,
-                    title=t["orcid_fail_title"], body=err, back="/login")
+                    title=t["orcid_fail_title"],
+                    body=f"{body} ({detail})" if detail else body,
+                    back="/login")
 
     orcid_id = data["orcid"]
     sess, user = current(db, borant_session)

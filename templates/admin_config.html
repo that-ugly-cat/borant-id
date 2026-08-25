@@ -1,62 +1,52 @@
 {% extends "base.html" %}
-{% block title %}Configurazione — {{ site_name }}{% endblock %}
+{% block title %}{{ t.nav_config }} — {{ site_name }}{% endblock %}
 {% block body %}
-<h1>Configurazione</h1>
-<p class="sub">
-  Il relay SMTP si imposta qui e non nell'ambiente: la casella non si conosce al
-  momento del deploy. Le chiavi (JWT, Fernet, ORCID) restano dove sono, cioè
-  fuori dalla portata di un form.
-</p>
+<h1>{{ t.nav_config }}</h1>
+<p class="sub">{{ t.adm_cfg_sub }}</p>
 
-{% if msg %}<div class="flash flash-ok">{{ msg }}</div>{% endif %}
-{% if error %}<div class="flash flash-error">{{ error }}</div>{% endif %}
+{% if msg %}
+  <div class="flash flash-ok">
+    {{ t.get('adm_cfg_msg_' + msg, msg) | format(to=msg_to) }}
+  </div>
+{% endif %}
+{% if error %}<div class="flash flash-error">{{ mail_error(error, t) }}</div>{% endif %}
 
 <div class="card">
   <form method="post" action="/admin/config">
     <input type="hidden" name="csrf" value="{{ csrf }}">
 
-    <h3>Generale</h3>
+    <h3>{{ t.adm_cfg_h_general }}</h3>
     <div class="row">
-      <div><label for="site_name">Nome</label>
+      <div><label for="site_name">{{ t.adm_cfg_name }}</label>
         <input id="site_name" name="site_name" value="{{ site_name }}"></div>
-      <div><label for="public_base_url">URL pubblico</label>
+      <div><label for="public_base_url">{{ t.adm_cfg_url }}</label>
         <input id="public_base_url" name="public_base_url" class="mono" value="{{ base }}"></div>
     </div>
-    <p class="note">
-      L'URL pubblico finisce nei link degli inviti e nei redirect verso ORCID:
-      se è sbagliato, il flusso ORCID smette di funzionare.
-    </p>
+    <p class="note">{{ t.adm_cfg_url_note }}</p>
 
-    <h3>Registrazione</h3>
+    <h3>{{ t.adm_cfg_h_reg }}</h3>
     <label class="check plain">
       <input type="checkbox" name="registration_open" value="1" {% if reg_open %}checked{% endif %}>
-      registrazione aperta a chiunque
+      {{ t.adm_cfg_reg_open }}
     </label>
-    <label for="registration_domains">Domini ammessi (separati da virgola, vuoto = tutti)</label>
+    <label for="registration_domains">{{ t.adm_cfg_domains }}</label>
     <input id="registration_domains" name="registration_domains"
            value="{{ registration_domains }}" placeholder="uzh.ch, ethz.ch">
-    <p class="note">
-      Aprire le registrazioni <strong>non apre nessuna app</strong>: un account
-      nuovo nasce con zero grant e non raggiunge niente, quindi chi si registra
-      ottiene il diritto di <em>chiedere</em>, non di entrare. Quello che cambia
-      è che la tabella utenti si riempie di chiunque passi, e le richieste vanno
-      smaltite. Governa anche ORCID: a registrazioni aperte, «entra con ORCID»
-      crea l'account se non esiste — sempre senza grant.
-    </p>
+    <p class="note">{{ t.adm_cfg_reg_note | safe }}</p>
 
     <h3>SMTP</h3>
     <label>
       <input type="checkbox" name="smtp_enabled" value="1" {% if cfg.enabled %}checked{% endif %}>
-      attivo
+      {{ t.adm_cfg_enabled }}
     </label>
     <div class="row">
-      <div><label for="smtp_host">Host</label>
+      <div><label for="smtp_host">{{ t.adm_cfg_host }}</label>
         <input id="smtp_host" name="smtp_host" class="mono" value="{{ cfg.host }}"
                placeholder="smtp.gmail.com"></div>
-      <div><label for="smtp_port">Porta</label>
+      <div><label for="smtp_port">{{ t.adm_cfg_port }}</label>
         <input id="smtp_port" name="smtp_port" value="{{ cfg.port }}"></div>
       <div>
-        <label for="smtp_security">Sicurezza</label>
+        <label for="smtp_security">{{ t.adm_cfg_security }}</label>
         <select id="smtp_security" name="smtp_security">
           {% for s in ['starttls', 'ssl', 'none'] %}
             <option value="{{ s }}" {% if cfg.security == s %}selected{% endif %}>{{ s }}</option>
@@ -65,86 +55,72 @@
       </div>
     </div>
     <div class="row">
-      <div><label for="smtp_username">Utente</label>
+      <div><label for="smtp_username">{{ t.adm_cfg_user }}</label>
         <input id="smtp_username" name="smtp_username" value="{{ cfg.username }}"></div>
       <div>
-        <label for="smtp_password">Password
-          {% if has_password %}<span class="badge badge-ok">impostata</span>{% endif %}
+        <label for="smtp_password">{{ t.password }}
+          {% if has_password %}<span class="badge badge-ok">{{ t.adm_cfg_pw_set }}</span>{% endif %}
         </label>
         <input id="smtp_password" name="smtp_password" type="password"
                autocomplete="new-password"
-               placeholder="{{ 'lascia vuoto per non cambiarla' if has_password else '' }}">
+               placeholder="{{ t.adm_cfg_pw_keep if has_password else '' }}">
       </div>
       <div class="fixed">
-        <label><input type="checkbox" name="clear_password" value="1"> cancella</label>
+        <label><input type="checkbox" name="clear_password" value="1"> {{ t.adm_cfg_pw_clear }}</label>
       </div>
     </div>
     <div class="row">
-      <div><label for="smtp_from_email">Mittente</label>
+      <div><label for="smtp_from_email">{{ t.adm_cfg_from }}</label>
         <input id="smtp_from_email" name="smtp_from_email" type="email"
                value="{{ cfg.from_email }}"></div>
-      <div><label for="smtp_from_name">Nome mittente</label>
+      <div><label for="smtp_from_name">{{ t.adm_cfg_fromname }}</label>
         <input id="smtp_from_name" name="smtp_from_name" value="{{ cfg.from_name }}"></div>
     </div>
 
-    <div class="actions"><button class="btn-primary" type="submit">Salva</button></div>
+    <div class="actions"><button class="btn-primary" type="submit">{{ t.save }}</button></div>
   </form>
 </div>
 
-<h2>Prova di invio</h2>
+<h2>{{ t.adm_cfg_h_test }}</h2>
 <div class="card">
   <form method="post" action="/admin/config/test" class="row">
     <input type="hidden" name="csrf" value="{{ csrf }}">
-    <div><label for="to">Destinatario</label>
+    <div><label for="to">{{ t.adm_col_recipient }}</label>
       <input id="to" name="to" type="email" value="{{ user.email }}"></div>
-    <div class="fixed"><button class="btn" type="submit">Manda una mail di prova</button></div>
+    <div class="fixed"><button class="btn" type="submit">{{ t.adm_cfg_test_btn }}</button></div>
   </form>
 </div>
 
-<h2>Scrivi agli utenti</h2>
+<h2>{{ t.adm_cfg_h_write }}</h2>
 <div class="card">
   <form method="post" action="/admin/message/preview">
     <input type="hidden" name="csrf" value="{{ csrf }}">
-    <label for="target">A chi</label>
+    <label for="target">{{ t.adm_msg_h_towhom }}</label>
     <select id="target" name="target">
-      <option value="tutti">Tutti gli utenti attivi ({{ n_users }})</option>
+      <option value="tutti">{{ t.adm_cfg_opt_all | format(n=n_users) }}</option>
       {% for a in apps %}
-        <option value="app:{{ a.id }}">Chi ha un grant su {{ a.name }}</option>
+        <option value="app:{{ a.id }}">{{ t.adm_cfg_opt_grant | format(app=a.name) }}</option>
       {% endfor %}
       {% for u in all_users %}
-        <option value="user:{{ u.id }}">Solo {{ u.display }} — {{ u.email }}</option>
+        <option value="user:{{ u.id }}">{{ t.adm_cfg_opt_one | format(who=u.display) }} — {{ u.email }}</option>
       {% endfor %}
     </select>
 
-    <label for="msg_subject">Oggetto</label>
+    <label for="msg_subject">{{ t.adm_msg_subject_l }}</label>
     <input id="msg_subject" name="subject" type="text">
 
-    <label for="msg_body">Testo</label>
+    <label for="msg_body">{{ t.adm_cfg_body }}</label>
     <textarea id="msg_body" name="body" rows="8"
-              placeholder="Ciao {nome},&#10;&#10;…"></textarea>
+              placeholder="{{ t.adm_cfg_body_ph }}&#10;&#10;…"></textarea>
 
-    <p class="note">
-      <code>{nome}</code> e <code>{email}</code> vengono sostituiti per ogni
-      destinatario. Testo semplice, niente HTML. Parte <strong>una mail per
-      persona</strong>, mai una in copia nascosta: nessuno vede gli indirizzi
-      degli altri, e se qualcuna fallisce sai quale. Solo utenti registrati —
-      qui non c'è un campo per indirizzi liberi, di proposito.
-    </p>
+    <p class="note">{{ t.adm_cfg_msg_note | safe }}</p>
     <div class="actions">
-      <button class="btn-primary" type="submit">Vedi chi riceve, poi conferma</button>
+      <button class="btn-primary" type="submit">{{ t.adm_cfg_preview_btn }}</button>
     </div>
   </form>
 </div>
 
 <div class="note">
-  <strong>Due trappole note.</strong>
-  Con Gmail serve l'autenticazione a due fattori attiva sull'account più una
-  <em>app password</em> (<code>smtp.gmail.com:587</code>, STARTTLS): la password
-  normale viene rifiutata. Su Microsoft 365 molti tenant hanno
-  <strong>SMTP AUTH disabilitato per default</strong>, e in quel caso serve
-  l'amministratore del tenant: nessuna configurazione qui può aggirarlo.
-  <br><br>
-  In ogni caso la mail resta una dipendenza <em>degradabile</em>: se il relay è
-  giù, gli inviti mostrano il link da copiare a mano invece di fallire.
+  <strong>{{ t.adm_cfg_traps_b }}</strong> {{ t.adm_cfg_traps | safe }}
 </div>
 {% endblock %}

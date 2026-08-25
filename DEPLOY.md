@@ -233,6 +233,7 @@ lssr.borant.eu {
 docker logs borantid --tail 100
 docker compose up --build -d          # dopo un aggiornamento
 docker exec -it borantid python seed.py --email … --apps   # riallinea le app
+docker exec -it borantid python seed.py --apps --descriptions  # e le descrizioni
 ```
 
 Il database sta in `/opt/apps/borantid/data/borantid.db`, su volume, e

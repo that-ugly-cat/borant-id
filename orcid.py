@@ -93,10 +93,20 @@ def authorize_url(state: str, redirect_uri: str) -> str:
     })
 
 
-def exchange(code: str, redirect_uri: str) -> tuple[dict | None, str]:
-    """({orcid, name, ...}, error). Never raises."""
+def exchange(code: str, redirect_uri: str) -> tuple[dict | None, str, str]:
+    """({orcid, name, ...}, reason, detail). Never raises.
+
+    `reason` is a stable code, not a sentence: the caller turns it into
+    `orcid_err_{reason}` and shows it in the reader's language. Sentences used
+    to live here, in Italian, and came out in Italian to the German and French
+    readers too — the page title around them was translated, the body was not.
+
+    `detail` is the part that is nobody's language: an exception class name, an
+    HTTP status. It goes to the audit log and, when there is one, in brackets
+    after the translated sentence.
+    """
     if not configured():
-        return None, "ORCID non configurato (ORCID_CLIENT_ID / ORCID_CLIENT_SECRET)"
+        return None, "unconfigured", "ORCID_CLIENT_ID / ORCID_CLIENT_SECRET"
     try:
         r = httpx.post(
             TOKEN_URL,
@@ -111,18 +121,18 @@ def exchange(code: str, redirect_uri: str) -> tuple[dict | None, str]:
             timeout=15,
         )
     except httpx.HTTPError as e:
-        return None, f"ORCID irraggiungibile: {type(e).__name__}"
+        return None, "unreachable", type(e).__name__
 
     if r.status_code != 200:
-        return None, f"ORCID ha rifiutato lo scambio ({r.status_code})"
+        return None, "rejected", str(r.status_code)
 
     try:
         data = r.json()
     except ValueError:
-        return None, "Risposta ORCID illeggibile"
+        return None, "unreadable", ""
 
     orcid_id = (data.get("orcid") or "").strip()
     if not orcid_id:
-        return None, "ORCID non ha restituito un iD"
+        return None, "no_id", ""
 
-    return {"orcid": orcid_id, "name": (data.get("name") or "").strip()}, ""
+    return {"orcid": orcid_id, "name": (data.get("name") or "").strip()}, "", ""

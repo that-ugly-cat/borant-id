@@ -1,33 +1,29 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Messaggio inviato' if sent else 'Conferma invio' }} — {{ site_name }}{% endblock %}
+{% block title %}{{ t.adm_msg_title_sent if sent else t.adm_msg_title_confirm }} — {{ site_name }}{% endblock %}
 {% block body %}
 
 {% if sent %}
   {% set ok = rows | selectattr('ok') | list | length %}
-  <h1>Inviato a {{ ok }} su {{ rows | length }}</h1>
-  <p class="sub">Oggetto: <strong>{{ subject }}</strong> · destinatari: {{ description }}</p>
+  <h1>{{ t.adm_msg_sent_h | format(ok=ok, tot=rows | length) }}</h1>
+  <p class="sub">{{ t.adm_msg_subject_l }}: <strong>{{ subject }}</strong> ·
+    {{ t.adm_msg_recipients_l }}: {{ t[description] | format(app=description_arg) }}</p>
 
   {% if ok < rows | length %}
-    <div class="flash flash-error">
-      Qualcuna non è partita. Se l'errore parla di limite, è la finestra
-      scorrevole di 24 ore di Infomaniak: i destinatari si contano uno per uno,
-      e gli slot si liberano ventiquattro ore dopo ciascun invio, non a
-      mezzanotte.
-    </div>
+    <div class="flash flash-error">{{ t.adm_msg_partial }}</div>
   {% else %}
-    <div class="flash flash-ok">Tutte partite.</div>
+    <div class="flash flash-ok">{{ t.adm_msg_all_ok }}</div>
   {% endif %}
 
   <div class="card">
     <div class="table-wrap">
       <table class="table">
-        <tr><th>Destinatario</th><th>Esito</th></tr>
+        <tr><th>{{ t.adm_col_recipient }}</th><th>{{ t.adm_col_outcome }}</th></tr>
         {% for r in rows %}
           <tr>
             <td class="mono">{{ r.email }}</td>
             <td>
-              {% if r.ok %}<span class="badge badge-ok">inviata</span>
-              {% else %}<span class="badge badge-danger">{{ r.error }}</span>{% endif %}
+              {% if r.ok %}<span class="badge badge-ok">{{ t.adm_msg_r_ok }}</span>
+              {% else %}<span class="badge badge-danger">{{ mail_error(r.error, t) }}</span>{% endif %}
             </td>
           </tr>
         {% endfor %}
@@ -35,39 +31,34 @@
     </div>
   </div>
 
-  <div class="actions"><a class="btn" href="/admin/config">Torna alla configurazione</a></div>
+  <div class="actions"><a class="btn" href="/admin/config">{{ t.adm_back_config }}</a></div>
 
 {% else %}
-  <h1>Stai per scrivere a {{ people | length }} {{ 'persona' if people | length == 1 else 'persone' }}</h1>
-  <p class="sub">{{ description }}</p>
+  {% set n = people | length %}
+  <h1>{{ (t.adm_msg_about_one if singular(n, t) else t.adm_msg_about_many) | format(n=n) }}</h1>
+  <p class="sub">{{ t[description] | format(app=description_arg) }}</p>
 
   {% if problem %}
-    <div class="flash flash-error">{{ problem }}</div>
-    <div class="actions"><a class="btn" href="/admin/config">Torna indietro</a></div>
+    <div class="flash flash-error">{{ t['adm_msg_pb_' + problem] }}</div>
+    <div class="actions"><a class="btn" href="/admin/config">{{ t.back }}</a></div>
   {% else %}
 
-    {% if people | length > 100 %}
+    {% if n > 100 %}
       <div class="flash flash-error">
-        <strong>{{ people | length }} destinatari.</strong> Il limite Infomaniak
-        è 200 o 500 ogni 24 ore secondo il piano, e i destinatari si contano
-        uno per uno: con questo invio ne consumi {{ people | length }}. La
-        finestra è scorrevole, quindi gli slot tornano poco a poco e non tutti
-        a mezzanotte.
+        <strong>{{ t.adm_msg_limit_b | format(n=n) }}</strong>
+        {{ t.adm_msg_limit | format(n=n) }}
       </div>
     {% endif %}
 
     <div class="card">
-      <h3>Il messaggio</h3>
+      <h3>{{ t.adm_msg_h_message }}</h3>
       <p><strong>{{ subject }}</strong></p>
       <pre class="mono" style="white-space:pre-wrap; margin:0">{{ body }}</pre>
-      <p class="note" style="margin-bottom:0">
-        <code>{nome}</code> e <code>{email}</code> vengono sostituiti per ogni
-        destinatario. Il testo parte in chiaro, senza HTML.
-      </p>
+      <p class="note" style="margin-bottom:0">{{ t.adm_msg_placeholders | safe }}</p>
     </div>
 
     <div class="card">
-      <h3>A chi</h3>
+      <h3>{{ t.adm_msg_h_towhom }}</h3>
       <div class="table-wrap">
         <table class="table">
           {% for u in people %}
@@ -79,10 +70,7 @@
         </table>
       </div>
       <p class="note" style="margin-bottom:0">
-        <strong>Una mail per persona, non una in copia nascosta.</strong> Così
-        nessuno vede gli indirizzi degli altri, e se qualcuna fallisce sai
-        quale. In BCC non si risparmierebbe nulla comunque: il conto dei
-        destinatari è lo stesso.
+        <strong>{{ t.adm_msg_one_each_b }}</strong> {{ t.adm_msg_one_each }}
       </p>
     </div>
 
@@ -92,8 +80,10 @@
       <input type="hidden" name="subject" value="{{ subject }}">
       <textarea name="body" style="display:none">{{ body }}</textarea>
       <div class="actions">
-        <button class="btn-primary" type="submit">Manda a {{ people | length }} {{ 'persona' if people | length == 1 else 'persone' }}</button>
-        <a class="btn" href="/admin/config">Annulla</a>
+        <button class="btn-primary" type="submit">
+          {{ (t.adm_msg_send_one if singular(n, t) else t.adm_msg_send_many) | format(n=n) }}
+        </button>
+        <a class="btn" href="/admin/config">{{ t.logout_cancel }}</a>
       </div>
     </form>
   {% endif %}

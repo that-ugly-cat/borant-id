@@ -1,23 +1,26 @@
 {% extends "base.html" %}
-{% block title %}Utenti — {{ site_name }}{% endblock %}
+{% block title %}{{ t.nav_users }} — {{ site_name }}{% endblock %}
 {% block container_class %} wide{% endblock %}
 {% block body %}
-<h1>Utenti</h1>
-<p class="sub">Chi esiste, e a quali app può entrare.</p>
+<h1>{{ t.nav_users }}</h1>
+<p class="sub">{{ t.adm_users_sub }}</p>
 
 <div class="adminlayout">
 <aside class="sidenav">
-  <p class="lead">In questa pagina</p>
+  <p class="lead">{{ t.adm_in_page }}</p>
   <ul>
     {% if requests %}
-      <li><a href="#richieste" class="warn">Richieste <span class="n">{{ requests | length }}</span></a></li>
+      <li><a href="#richieste" class="warn">{{ t.adm_users_nav_requests }}
+        <span class="n">{{ requests | length }}</span></a></li>
     {% endif %}
-    <li><a href="#invita">Invita</a></li>
-    <li><a href="#blocco">In blocco</a></li>
+    <li><a href="#invita">{{ t.adm_users_nav_invite }}</a></li>
+    <li><a href="#blocco">{{ t.adm_users_nav_batch }}</a></li>
     {% if pending %}
-      <li><a href="#inviti">Inviti aperti <span class="n">{{ pending | length }}</span></a></li>
+      <li><a href="#inviti">{{ t.adm_users_nav_pending }}
+        <span class="n">{{ pending | length }}</span></a></li>
     {% endif %}
-    <li><a href="#persone">Persone <span class="n">{{ rows | length }}</span></a></li>
+    <li><a href="#persone">{{ t.adm_users_nav_people }}
+      <span class="n">{{ rows | length }}</span></a></li>
   </ul>
 </aside>
 
@@ -25,42 +28,37 @@
 
 {% if invite_link %}
   <div class="flash flash-error">
-    <strong>La mail non è partita:</strong> {{ mail_error }}<br>
-    Il link d'invito è comunque valido — passalo a mano:
+    <strong>{{ t.adm_users_mailfail_b }}</strong> {{ mail_error(mail_error_code, t) }}<br>
+    {{ t.adm_users_mailfail }}
     <p class="mono break" style="margin:.4rem 0 0">{{ invite_link }}</p>
   </div>
 {% endif %}
 
 {% if pw_ok %}
-  <div class="flash flash-ok">
-    Password di <strong>{{ pw_ok }}</strong> cambiata. Le sue sessioni aperte
-    sono state chiuse, e gliel'abbiamo scritto.
-  </div>
+  <div class="flash flash-ok">{{ t.adm_users_pwok | format(who=pw_ok | e) | safe }}</div>
 {% endif %}
 
 {% if pw_err %}
-  <div class="flash flash-error">
-    Password di <strong>{{ pw_err }}</strong> <strong>non</strong> cambiata:
-    ne servono almeno dieci caratteri.
-  </div>
+  <div class="flash flash-error">{{ t.adm_users_pwerr | format(who=pw_err | e) | safe }}</div>
 {% endif %}
 
 {% if requests %}
-  <h2 id="richieste">Richieste di accesso ({{ requests | length }})</h2>
+  <h2 id="richieste">{{ t.adm_users_h_requests | format(n=requests | length) }}</h2>
   <div class="card card-danger">
     <div class="table-wrap">
       <table class="table">
-        <tr><th>Chi</th><th>App</th><th>Perché</th><th>Quando</th><th></th></tr>
+        <tr><th>{{ t.adm_col_who }}</th><th>{{ t.home_col_app }}</th>
+            <th>{{ t.adm_col_why }}</th><th>{{ t.adm_col_when }}</th><th></th></tr>
         {% for r in requests %}
           <tr>
             <td>{{ r.user.display }}<br><span class="muted">{{ r.user.email }}</span>
               {% if not r.user.email_verified_at %}
-                <br><span class="badge badge-warn">email non confermata</span>
+                <br><span class="badge badge-warn">{{ t.adm_users_unverified }}</span>
               {% endif %}
             </td>
             <td>{{ r.app.name }}<br><span class="muted mono">{{ r.app.host }}</span></td>
             <td class="small">{{ r.message or '—' }}</td>
-            <td class="muted small">{{ r.created_at.strftime('%d/%m %H:%M') }}</td>
+            <td class="muted small">{{ r.created_at.strftime(t.fmt_datetime_short) }}</td>
             <td>
               {% set rl = r.app.role_list() %}
               <form method="post" action="/admin/requests/{{ r.id }}/approve" class="row">
@@ -75,54 +73,49 @@
                   </div>
                 {% endif %}
                 <span class="fixed">
-                  <button class="btn-primary btn-small" type="submit">Approva</button>
+                  <button class="btn-primary btn-small" type="submit">{{ t.adm_users_approve }}</button>
                 </span>
               </form>
               <form method="post" action="/admin/requests/{{ r.id }}/deny" class="inline">
                 <input type="hidden" name="csrf" value="{{ csrf }}">
-                <button class="btn btn-danger btn-small" type="submit">Rifiuta</button>
+                <button class="btn btn-danger btn-small" type="submit">{{ t.adm_users_deny }}</button>
               </form>
             </td>
           </tr>
         {% endfor %}
       </table>
     </div>
-    <p class="note" style="margin-bottom:0">
-      Il ruolo si sceglie <strong>qui</strong>, approvando, non quando la
-      richiesta viene fatta: è l'unico momento in cui si sa cosa concedere. Per
-      un'app che spende — ArguMap paga le chiamate LLM dalla chiave del server —
-      concedere per inerzia un ruolo che sblocca la pipeline apre un rubinetto.
-    </p>
+    <p class="note" style="margin-bottom:0">{{ t.adm_users_req_note | safe }}</p>
   </div>
 {% endif %}
 
-<h2 id="invita">Invita</h2>
+<h2 id="invita">{{ t.adm_users_nav_invite }}</h2>
 <div class="card">
   <form method="post" action="/admin/users/invite">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <div class="row">
       <div>
-        <label for="email">Email</label>
+        <label for="email">{{ t.email }}</label>
         <input id="email" name="email" type="email" required>
       </div>
       <div>
-        <label for="name">Nome</label>
+        <label for="name">{{ t.invite_name }}</label>
         <input id="name" name="name" type="text">
       </div>
       <div>
-        <label for="orcid_hint">ORCID atteso (facoltativo)</label>
+        <label for="orcid_hint">{{ t.adm_users_orcid_hint }}</label>
         <input id="orcid_hint" name="orcid_hint" type="text" class="mono"
                placeholder="0000-0002-...">
       </div>
       <div class="fixed">
-        <label><input type="checkbox" name="is_admin" value="1"> amministratore</label>
+        <label><input type="checkbox" name="is_admin" value="1"> {{ t.adm_users_is_admin }}</label>
       </div>
     </div>
 
-    <h3>Accesso alle app</h3>
+    <h3>{{ t.adm_users_h_apps }}</h3>
     <div class="table-wrap">
       <table class="table">
-        <tr><th></th><th>App</th><th>Ruolo suggerito (X-Borant-Hint)</th></tr>
+        <tr><th></th><th>{{ t.home_col_app }}</th><th>{{ t.adm_users_role_hint }}</th></tr>
         {% for a in apps %}
           {% set rl = a.role_list() %}
           <tr>
@@ -136,37 +129,30 @@
                   {% for r in rl %}<option value="{{ r }}"></option>{% endfor %}
                 </datalist>
               {% else %}
-                <span class="muted small">— questa app non ha ruoli</span>
+                <span class="muted small">{{ t.adm_users_noroles }}</span>
               {% endif %}
             </td>
           </tr>
         {% endfor %}
       </table>
     </div>
-    <div class="actions"><button class="btn-primary" type="submit">Manda l'invito</button></div>
+    <div class="actions"><button class="btn-primary" type="submit">{{ t.adm_users_invite_btn }}</button></div>
   </form>
 </div>
 
-<h2 id="blocco">Creazione in blocco</h2>
+<h2 id="blocco">{{ t.adm_batch_title }}</h2>
 <div class="card">
   <form method="post" action="/admin/users/batch">
     <input type="hidden" name="csrf" value="{{ csrf }}">
-    <label for="people">Una persona per riga — <span class="mono">email</span>
-      oppure <span class="mono">email, Nome Cognome</span></label>
+    <label for="people">{{ t.adm_users_people_l | safe }}</label>
     <textarea id="people" name="people" rows="8"
               placeholder="anna.rossi@uzh.ch, Anna Rossi&#10;luca.bianchi@uzh.ch, Luca Bianchi"></textarea>
-    <p class="note">
-      Accetta anche punto e virgola e tabulazioni, perché è così che escono gli
-      elenchi incollati da un foglio. Le righe vuote e quelle che iniziano con
-      <span class="mono">#</span> si saltano, i doppioni pure. Chi ha già un
-      account non viene toccato: gli si aggiungono solo i grant mancanti, così
-      un batch rilanciato per sbaglio non azzera niente.
-    </p>
+    <p class="note">{{ t.adm_users_batch_note | safe }}</p>
 
-    <h3>Accesso alle app</h3>
+    <h3>{{ t.adm_users_h_apps }}</h3>
     <div class="table-wrap">
       <table class="table">
-        <tr><th></th><th>App</th><th>Ruolo suggerito</th></tr>
+        <tr><th></th><th>{{ t.home_col_app }}</th><th>{{ t.adm_users_role_hint2 }}</th></tr>
         {% for a in apps %}
           {% set rl = a.role_list() %}
           <tr>
@@ -180,7 +166,7 @@
                   {% for x in rl %}<option value="{{ x }}"></option>{% endfor %}
                 </datalist>
               {% else %}
-                <span class="muted small">— questa app non ha ruoli</span>
+                <span class="muted small">{{ t.adm_users_noroles }}</span>
               {% endif %}
             </td>
           </tr>
@@ -188,31 +174,32 @@
       </table>
     </div>
 
-    <h3>Come</h3>
+    <h3>{{ t.adm_users_h_how }}</h3>
     <label class="check plain">
       <input type="radio" name="mode" value="invite" checked>
-      manda un invito: scelgono loro la password, e l'indirizzo risulta verificato
+      {{ t.adm_users_mode_invite }}
     </label>
     <label class="check plain">
       <input type="radio" name="mode" value="create">
-      crea subito con password generate: compaiono una volta sola, da copiare
+      {{ t.adm_users_mode_create }}
     </label>
-    <div class="actions"><button class="btn-primary" type="submit">Elabora</button></div>
+    <div class="actions"><button class="btn-primary" type="submit">{{ t.adm_users_batch_btn }}</button></div>
   </form>
 </div>
 
 {% if pending %}
-  <h2 id="inviti">Inviti in attesa</h2>
+  <h2 id="inviti">{{ t.adm_users_h_pending }}</h2>
   <div class="card">
     <div class="table-wrap">
       <table class="table">
-        <tr><th>Email</th><th>Creato</th><th>Scade</th><th>Da</th></tr>
-        {% for t in pending %}
+        <tr><th>{{ t.email }}</th><th>{{ t.adm_col_created }}</th>
+            <th>{{ t.adm_col_expires }}</th><th>{{ t.adm_col_by }}</th></tr>
+        {% for inv in pending %}
           <tr>
-            <td>{{ t.email }}</td>
-            <td>{{ t.created_at.strftime('%d/%m/%Y') }}</td>
-            <td>{{ t.expires_at.strftime('%d/%m/%Y') }}</td>
-            <td class="muted">{{ t.created_by }}</td>
+            <td>{{ inv.email }}</td>
+            <td>{{ inv.created_at.strftime(t.fmt_date) }}</td>
+            <td>{{ inv.expires_at.strftime(t.fmt_date) }}</td>
+            <td class="muted">{{ inv.created_by }}</td>
           </tr>
         {% endfor %}
       </table>
@@ -221,38 +208,29 @@
 {% endif %}
 
 {% if request.query_params.get('deleted') %}
-  <div class="flash flash-ok">
-    Utente cancellato. Ricorda che <strong>le app non sono state toccate</strong>:
-    il profilo locale è ancora là dove era già entrato.
-  </div>
+  <div class="flash flash-ok">{{ t.adm_users_deleted | safe }}</div>
 {% endif %}
 
-<h2 id="persone">Persone</h2>
-<p class="sub">
-  <strong>Disattiva</strong> è reversibile e conserva tutto — è quasi sempre
-  quello che serve. <strong>Cancella</strong> è definitivo e non tocca le app.
-  <strong>Imposta</strong> una password serve quando il reset per posta non è
-  una strada: un account condiviso di cui nessuno legge la casella, un
-  indirizzo che rimbalza, una password generata e persa. Chiude tutte le
-  sessioni di quella persona e gliela manda a dire.
-</p>
+<h2 id="persone">{{ t.adm_users_nav_people }}</h2>
+<p class="sub">{{ t.adm_users_people_sub | safe }}</p>
 {% for u in rows %}
   <details class="exp" id="u{{ u.id }}">
     <summary>
       <span class="sum-line">
         <strong>{{ u.display }}</strong>
-        {% if u.is_admin %}<span class="badge badge-warn">admin</span>{% endif %}
-        {% if not u.is_active %}<span class="badge badge-muted">disattivato</span>{% endif %}
+        {% if u.is_admin %}<span class="badge badge-warn">{{ t.adm_users_badge_admin }}</span>{% endif %}
+        {% if not u.is_active %}<span class="badge badge-muted">{{ t.adm_users_badge_off }}</span>{% endif %}
         {% if u.has_totp %}<span class="badge badge-ok">2FA</span>{% endif %}
         {% set n = u.grants | length %}
         {% if u.is_admin %}
           {# Gli admin bypassano i grant: contarli direbbe il falso, e
              «nessun accesso» accanto a «admin» sarebbe l'opposto del vero. #}
-          <span class="badge badge-muted">entra ovunque</span>
+          <span class="badge badge-muted">{{ t.adm_users_badge_everywhere }}</span>
         {% elif n %}
-          <span class="badge badge-muted">{{ n }} app</span>
+          <span class="badge badge-muted">{{ (t.adm_users_badge_napps_one
+            if singular(n, t) else t.adm_users_badge_napps) | format(n=n) }}</span>
         {% else %}
-          <span class="badge badge-muted">nessun accesso</span>
+          <span class="badge badge-muted">{{ t.adm_users_badge_noaccess }}</span>
         {% endif %}
       </span>
       <span class="sum-line sum-side">
@@ -265,30 +243,36 @@
     <div class="actions">
         <form method="post" action="/admin/users/{{ u.id }}/toggle-active" class="inline">
           <input type="hidden" name="csrf" value="{{ csrf }}">
-          <button class="btn btn-small" type="submit">{{ 'Disattiva' if u.is_active else 'Riattiva' }}</button>
+          <button class="btn btn-small" type="submit">
+            {{ t.adm_deactivate if u.is_active else t.adm_reactivate }}
+          </button>
         </form>
         <form method="post" action="/admin/users/{{ u.id }}/toggle-admin" class="inline">
           <input type="hidden" name="csrf" value="{{ csrf }}">
-          <button class="btn btn-small" type="submit">{{ 'Togli admin' if u.is_admin else 'Rendi admin' }}</button>
+          <button class="btn btn-small" type="submit">
+            {{ t.adm_users_admin_off if u.is_admin else t.adm_users_admin_on }}
+          </button>
         </form>
         <form method="post" action="/admin/users/{{ u.id }}/password" class="inline"
-              onsubmit="return confirm('Cambiare la password di {{ u.email }}? Le sue sessioni aperte verranno chiuse e riceverà una mail.')">
+              onsubmit='return confirm({{ t.adm_users_pw_confirm | format(email=u.email) | tojson }})'>
           <input type="hidden" name="csrf" value="{{ csrf }}">
           <input type="password" name="password" minlength="10" required
-                 autocomplete="new-password" placeholder="nuova password"
+                 autocomplete="new-password" placeholder="{{ t.adm_users_pw_ph }}"
                  style="width:11rem">
-          <button class="btn btn-small" type="submit">Imposta</button>
+          <button class="btn btn-small" type="submit">{{ t.adm_users_pw_btn }}</button>
         </form>
         <form method="post" action="/admin/users/{{ u.id }}/reset-2fa" class="inline">
           <input type="hidden" name="csrf" value="{{ csrf }}">
-          <button class="btn btn-danger btn-small" type="submit">Azzera 2FA</button>
+          <button class="btn btn-danger btn-small" type="submit">{{ t.adm_users_reset2fa }}</button>
         </form>
         {% if u.id != user.id %}
-          <a class="btn btn-danger btn-small" href="/admin/users/{{ u.id }}/delete">Cancella…</a>
+          <a class="btn btn-danger btn-small" href="/admin/users/{{ u.id }}/delete">
+            {{ t.adm_users_delete_link }}
+          </a>
         {% endif %}
     </div>
 
-    <h3>App</h3>
+    <h3>{{ t.nav_apps }}</h3>
     <div class="table-wrap">
       <table class="table">
         {% for a in apps %}
@@ -296,7 +280,7 @@
           <tr>
             <td style="width:14rem">{{ a.name }}
               {% if a.default_access == 'any_authenticated' %}
-                <span class="badge badge-muted">aperta a tutti</span>
+                <span class="badge badge-muted">{{ t.adm_users_open_all }}</span>
               {% endif %}
             </td>
             <td>
@@ -313,22 +297,24 @@
                   </datalist>
                   {% if g and g.level_hint and g.level_hint not in rl %}
                     <span class="fixed">
-                      <span class="badge badge-warn" title="Non è fra i ruoli dichiarati per questa app">
-                        fuori lista
+                      <span class="badge badge-warn" title="{{ t.adm_users_offlist_title }}">
+                        {{ t.adm_users_offlist }}
                       </span>
                     </span>
                   {% endif %}
                 {% else %}
-                  <span class="muted small">nessun ruolo dichiarato</span>
+                  <span class="muted small">{{ t.adm_users_norole }}</span>
                 {% endif %}
                 <span class="fixed">
                   <button class="btn btn-small" type="submit">
-                    {{ 'Aggiorna' if g else 'Concedi' }}
+                    {{ t.adm_users_update if g else t.adm_users_give }}
                   </button>
                 </span>
                 {% if g %}
                   <span class="fixed">
-                    <button class="btn btn-danger btn-small" type="submit" name="remove" value="1">Revoca</button>
+                    <button class="btn btn-danger btn-small" type="submit" name="remove" value="1">
+                      {{ t.adm_users_revoke }}
+                    </button>
                   </span>
                 {% endif %}
               </form>

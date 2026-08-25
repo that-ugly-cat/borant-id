@@ -1,31 +1,32 @@
 {% extends "base.html" %}
-{% block title %}Creazione in blocco — {{ site_name }}{% endblock %}
+{% block title %}{{ t.adm_batch_title }} — {{ site_name }}{% endblock %}
 {% block body %}
-<h1>Creazione in blocco</h1>
-<p class="sub">{{ rows | length }} righe elaborate, modalità <code>{{ mode }}</code>.</p>
+<h1>{{ t.adm_batch_title }}</h1>
+<p class="sub">{{ (t.adm_batch_sub_one if singular(rows | length, t) else t.adm_batch_sub)
+   | format(n=rows | length) }} <code>{{ mode }}</code>.</p>
 
 {% if mode == 'create' %}
   <div class="flash flash-error">
-    <strong>Le password compaiono solo adesso.</strong> Copiale prima di
-    lasciare questa pagina: sono hashate nel database e non c'è modo di
-    rileggerle. Chi le perde passa dal reset.
+    <strong>{{ t.adm_batch_pw_b }}</strong> {{ t.adm_batch_pw }}
   </div>
 {% endif %}
 
 <div class="card">
   <div class="table-wrap">
     <table class="table">
-      <tr><th>Email</th><th>Esito</th><th>{{ 'Password' if mode == 'create' else 'Link (se la mail non è partita)' }}</th></tr>
+      <tr><th>{{ t.email }}</th><th>{{ t.adm_col_outcome }}</th>
+          <th>{{ t.password if mode == 'create' else t.adm_batch_col_link }}</th></tr>
       {% for r in rows %}
         <tr>
           <td class="mono">{{ r.email }}</td>
           <td>
-            {% if 'creato' in r.esito or 'inviato' in r.esito %}
-              <span class="badge badge-ok">{{ r.esito }}</span>
-            {% elif 'già presente' in r.esito %}
-              <span class="badge badge-muted">{{ r.esito }}</span>
+            {% if r.kind == 'existing' %}
+              <span class="badge badge-muted">{{ t.adm_batch_r_existing }}</span>
+            {% elif r.kind == 'mail_failed' %}
+              <span class="badge badge-danger">{{ t.adm_batch_r_mail_failed }}:
+                {{ mail_error(r.detail, t) }}</span>
             {% else %}
-              <span class="badge badge-danger">{{ r.esito }}</span>
+              <span class="badge badge-ok">{{ t['adm_batch_r_' + r.kind] }}</span>
             {% endif %}
           </td>
           <td class="mono break">{{ r.extra }}</td>
@@ -36,6 +37,6 @@
 </div>
 
 <div class="actions">
-  <a class="btn" href="/admin/users">Torna agli utenti</a>
+  <a class="btn" href="/admin/users">{{ t.adm_back_users }}</a>
 </div>
 {% endblock %}

@@ -1,81 +1,73 @@
 {% extends "base.html" %}
-{% block title %}Cancella {{ target.display }} — {{ site_name }}{% endblock %}
+{% block title %}{{ t.adm_del_title | format(who=target.display) }} — {{ site_name }}{% endblock %}
 {% block body %}
-<h1>Cancellare {{ target.display }}?</h1>
+<h1>{{ t.adm_del_h | format(who=target.display) }}</h1>
 <p class="sub">
   <span class="mono">{{ target.email }}</span> ·
   <span class="mono">{{ target.subject }}</span>
 </p>
 
-{% if error %}<div class="flash flash-error">{{ error }}</div>{% endif %}
+{% if error %}
+  <div class="flash flash-error">{{ t.get('adm_del_err_' + error, error) }}</div>
+{% endif %}
 
 {% if blocker %}
-  <div class="flash flash-error"><strong>Non si può.</strong> {{ blocker }}</div>
-  <a class="btn" href="/admin/users">Torna agli utenti</a>
+  <div class="flash flash-error">
+    <strong>{{ t.adm_del_cannot }}</strong> {{ t['adm_del_block_' + blocker] }}
+  </div>
+  <a class="btn" href="/admin/users">{{ t.adm_back_users }}</a>
 {% else %}
 
-  <h2>Cosa succede qui</h2>
+  <h2>{{ t.adm_del_h_what }}</h2>
   <div class="card">
     <ul>
-      <li>L'account sparisce, e con lui <strong>{{ target.grants | length }}</strong>
-          grant, i codici di backup e il secondo fattore.</li>
-      <li><strong>{{ live_sessions }}</strong> session{{ 'e aperte vengono chiuse' if live_sessions != 1 else 'e aperta viene chiusa' }} subito.</li>
-      <li><strong>{{ audit_rows }}</strong> righe di log <strong>restano</strong>, slegate
-          dall'utente e ripulite dall'indirizzo. Un log che sparisce insieme a
-          chi ha agito non è un log.</li>
-      <li>L'evento viene registrato con il <span class="mono">subject</span>,
-          non con l'email: tenerla lì significherebbe cancellare l'indirizzo da
-          ogni riga tranne quella che dice che è stato cancellato.</li>
+      <li>{{ (t.adm_del_l1_one if singular(target.grants | length, t)
+              else t.adm_del_l1) | format(n=target.grants | length) | safe }}</li>
+      <li>{{ (t.adm_del_l2_one if singular(live_sessions, t) else t.adm_del_l2_many)
+             | format(n=live_sessions) | safe }}</li>
+      <li>{{ (t.adm_del_l3_one if singular(audit_rows, t) else t.adm_del_l3)
+             | format(n=audit_rows) | safe }}</li>
+      <li>{{ t.adm_del_l4 | safe }}</li>
     </ul>
   </div>
 
-  <h2>Cosa <em>non</em> succede</h2>
+  <h2>{{ t.adm_del_h_notwhat | safe }}</h2>
   <div class="card card-danger">
     <p>
-      <strong>Le app non vengono toccate.</strong> Se questa persona è già
-      entrata da qualche parte, lì è rimasto un profilo locale con il suo
-      <span class="mono">borant_sub</span> ormai orfano — e con dentro il suo
-      lavoro, il suo nome e il suo indirizzo. Per una cancellazione vera devi
-      passare da ognuna.
+      <strong>{{ t.adm_del_apps_b }}</strong> {{ t.adm_del_apps | safe }}
     </p>
     {% if apps_with_grant %}
-      <p>Aveva accesso a:</p>
+      <p>{{ t.adm_del_had }}</p>
       <ul>
         {% for a in apps_with_grant %}
           <li><strong>{{ a.name }}</strong>
             <span class="muted mono">{{ a.host }}</span>
             {% if a.slug in ('argumap', 'roompulse', 'lssr', 'papertrail', 'autocode') %}
-              <span class="badge badge-warn">crea profili locali</span>
+              <span class="badge badge-warn">{{ t.adm_del_local }}</span>
             {% endif %}
           </li>
         {% endfor %}
       </ul>
     {% else %}
-      <p class="muted" style="margin-bottom:0">
-        Nessun grant: se non è mai entrata da nessuna parte, non c'è altro da
-        ripulire. Controlla comunque le app aperte a tutti gli autenticati.
-      </p>
+      <p class="muted" style="margin-bottom:0">{{ t.adm_del_nogrant }}</p>
     {% endif %}
   </div>
 
-  <h2>Conferma</h2>
+  <h2>{{ t.adm_del_h_confirm }}</h2>
   <div class="card">
     <form method="post" action="/admin/users/{{ target.id }}/delete">
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <label for="confirm_email">
-        Riscrivi <span class="mono">{{ target.email }}</span> per confermare
+        {{ t.adm_del_retype
+           | format(email='<span class="mono">' ~ target.email | e ~ '</span>')
+           | safe }}
       </label>
       <input id="confirm_email" name="confirm_email" type="text"
              autocomplete="off" autofocus required>
-      <p class="note">
-        Si riscrive a mano di proposito: in un elenco di trenta studenti un
-        bottone rosso accanto al nome sbagliato è un incidente che aspetta.
-        Se volevi solo togliere l'accesso, <strong>disattiva</strong> invece:
-        è reversibile e conserva tutto.
-      </p>
+      <p class="note">{{ t.adm_del_note | safe }}</p>
       <div class="actions">
-        <button class="btn btn-danger" type="submit">Cancella definitivamente</button>
-        <a class="btn" href="/admin/users">Annulla</a>
+        <button class="btn btn-danger" type="submit">{{ t.adm_del_btn }}</button>
+        <a class="btn" href="/admin/users">{{ t.logout_cancel }}</a>
       </div>
     </form>
   </div>

@@ -81,7 +81,7 @@ def users(request: Request, borant_session: str | None = Cookie(default=None),
                  pending=[t for t in pending if t.is_live()], apps=apps,
                  requests=requests_pending,
                  invite_link=request.query_params.get("link", ""),
-                 mail_error=request.query_params.get("mailerr", ""),
+                 mail_error_code=request.query_params.get("mailerr", ""),
                  pw_ok=request.query_params.get("pwok", ""),
                  pw_err=request.query_params.get("pwerr", ""))
 
@@ -515,6 +515,7 @@ def config(request: Request, borant_session: str | None = Cookie(default=None),
                  all_users=everyone, n_users=len(everyone),
                  base=settings.base_url(db),
                  msg=request.query_params.get("msg", ""),
+                 msg_to=request.query_params.get("to", ""),
                  error=request.query_params.get("err", ""))
 
 
@@ -564,7 +565,7 @@ def config_save(request: Request, smtp_enabled: str = Form(""),
         settings.set_smtp_password(db, smtp_password)
 
     audit(db, "config.saved", user=me, ip=_ip(request))
-    return RedirectResponse("/admin/config?msg=Configurazione+salvata",
+    return RedirectResponse("/admin/config?msg=saved",
                             status_code=303)
 
 
@@ -584,7 +585,7 @@ def config_test(request: Request, to: str = Form(""), csrf: str = Form(""),
           ok=ok, error=err)
     if ok:
         return RedirectResponse(
-            f"/admin/config?msg={quote('Mail di prova inviata a ' + target)}",
+            f"/admin/config?msg=test&to={quote(target, safe='')}",
             status_code=303)
     return RedirectResponse(f"/admin/config?err={quote(err[:300])}",
                             status_code=303)
@@ -713,8 +714,8 @@ async def users_batch(request: Request, people: str = Form(""),
                     db.add(Grant(user_id=existing.id, app_id=int(app_id),
                                  level_hint=hint, created_by=me.display))
             db.commit()
-            rows.append({"email": email, "esito": "già presente, grant aggiornati",
-                         "extra": ""})
+            rows.append({"email": email, "kind": "existing",
+                         "detail": "", "extra": ""})
             continue
 
         if mode == "create":
@@ -732,8 +733,8 @@ async def users_batch(request: Request, people: str = Form(""),
                 db.add(Grant(user_id=u.id, app_id=int(app_id),
                              level_hint=hint, created_by=me.display))
             db.commit()
-            rows.append({"email": email, "esito": "account creato",
-                         "extra": password})
+            rows.append({"email": email, "kind": "created",
+                         "detail": "", "extra": password})
         else:
             plain, digest = new_token()
             db.add(Token(kind="invite", token_hash=digest, email=email,
@@ -744,7 +745,8 @@ async def users_batch(request: Request, people: str = Form(""),
             link = f"{settings.base_url(db)}/invite/{plain}"
             ok, err = mailer.send_invite(db, email, name, link)
             rows.append({"email": email,
-                         "esito": "invito inviato" if ok else f"mail non partita: {err[:60]}",
+                         "kind": "invited" if ok else "mail_failed",
+                         "detail": "" if ok else err[:80],
                          "extra": "" if ok else link})
 
     auth.invalidate_registry()
@@ -777,18 +779,19 @@ async def users_batch(request: Request, people: str = Form(""),
 #      bottone rosso accanto al nome sbagliato è un incidente che aspetta.
 
 def _delete_blockers(db, me, u):
-    """Perché questo utente non si può cancellare, se non si può."""
+    """Perché questo utente non si può cancellare, se non si può. Torna un
+    codice e non una frase: la frase la sceglie il template, nella lingua di
+    chi guarda (`adm_del_block_*`)."""
     if u is None:
-        return "Utente inesistente."
+        return "no_user"
     if u.id == me.id:
-        return "Non puoi cancellare il tuo stesso account."
+        return "self"
     if u.is_admin:
         others = (db.query(User)
                     .filter(User.is_admin.is_(True), User.is_active.is_(True),
                             User.id != u.id).count())
         if others == 0:
-            return ("È l'ultimo amministratore attivo. Nominane un altro "
-                    "prima, o resti fuori tu.")
+            return "last_admin"
     return ""
 
 
@@ -828,15 +831,13 @@ def delete_user(uid: int, request: Request, confirm_email: str = Form(""),
 
     blocker = _delete_blockers(db, me, u)
     if blocker:
-        return RedirectResponse(f"/admin/users/{uid}/delete?err="
-                                f"{quote(blocker)}", status_code=303)
+        return RedirectResponse(f"/admin/users/{uid}/delete",
+                                status_code=303)
 
     typed = (confirm_email or "").strip().lower()
     if not u.email or typed != u.email.lower():
-        return RedirectResponse(
-            f"/admin/users/{uid}/delete?err="
-            f"{quote('Riscrivi esattamente l indirizzo per confermare.')}",
-            status_code=303)
+        return RedirectResponse(f"/admin/users/{uid}/delete?err=confirm",
+                                status_code=303)
 
     subject, email, name = u.subject, u.email, u.name
     apps_touched = [db.get(App, g.app_id).slug for g in u.grants
@@ -910,31 +911,32 @@ def delete_user(uid: int, request: Request, confirm_email: str = Form(""),
 #      non è cerimonia.
 
 def _recipients(db, target: str):
-    """(lista di utenti, descrizione leggibile). Solo attivi e con un'email:
-    un utente entrato solo con ORCID può non averla."""
+    """(lista di utenti, chiave di traduzione, argomento). Solo attivi e con
+    un'email: un utente entrato solo con ORCID può non averla. La descrizione
+    esce come chiave `adm_rcp_*` perché la legge chi guarda, non chi scrive."""
     base = (db.query(User)
               .filter(User.is_active.is_(True), User.email.isnot(None))
               .order_by(User.email))
     if target == "tutti":
-        return base.all(), "tutti gli utenti attivi"
+        return base.all(), "adm_rcp_all", ""
     if target.startswith("app:"):
         try:
             app_id = int(target[4:])
         except ValueError:
-            return [], "selezione non valida"
+            return [], "adm_rcp_bad", ""
         a = db.get(App, app_id)
         if a is None:
-            return [], "app inesistente"
+            return [], "adm_rcp_noapp", ""
         ids = {g.user_id for g in
                db.query(Grant).filter(Grant.app_id == app_id).all()}
-        return [u for u in base.all() if u.id in ids], f"chi ha un grant su {a.name}"
+        return [u for u in base.all() if u.id in ids], "adm_rcp_grant", a.name
     if target.startswith("user:"):
         try:
             u = db.get(User, int(target[5:]))
         except ValueError:
-            return [], "selezione non valida"
-        return ([u] if u and u.is_active and u.email else []), "un utente solo"
-    return [], "selezione non valida"
+            return [], "adm_rcp_bad", ""
+        return ([u] if u and u.is_active and u.email else []), "adm_rcp_single", ""
+    return [], "adm_rcp_bad", ""
 
 
 @router.post("/message/preview", response_class=HTMLResponse)
@@ -949,17 +951,18 @@ def message_preview(request: Request, target: str = Form("tutti"),
     if not _csrf_ok(sess, csrf):
         return RedirectResponse("/admin/config", status_code=303)
 
-    people,descrizione = _recipients(db, target)
+    people, desc_key, desc_arg = _recipients(db, target)
     problem = ""
     if not subject.strip() or not body.strip():
-        problem = "Servono un oggetto e un testo."
+        problem = "subject"
     elif not people:
-        problem = "Nessun destinatario con questa selezione."
+        problem = "norecipients"
     elif not settings.get_bool(db, "smtp_enabled"):
-        problem = "SMTP non è attivo: la mail non partirebbe."
+        problem = "smtpoff"
 
     return _page(request, db, "admin_message.html", sess, me, sent=False,
-                 people=people, target=target, description=descrizione,
+                 people=people, target=target, description=desc_key,
+                 description_arg=desc_arg,
                  subject=subject, body=body, problem=problem, rows=[])
 
 
@@ -975,7 +978,7 @@ def message_send(request: Request, target: str = Form("tutti"),
     if not _csrf_ok(sess, csrf):
         return RedirectResponse("/admin/config", status_code=303)
 
-    people, descrizione = _recipients(db, target)
+    people, desc_key, desc_arg = _recipients(db, target)
     if not subject.strip() or not body.strip() or not people:
         return RedirectResponse("/admin/config", status_code=303)
 
@@ -991,7 +994,8 @@ def message_send(request: Request, target: str = Form("tutti"),
     # Il corpo non finisce nel log: può essere lungo e può contenere di tutto.
     # Restano oggetto, quanti e a chi, che è ciò che serve per ricostruire.
     audit(db, "message.sent", user=me, ip=_ip(request), subject=subject.strip(),
-          target=descrizione, inviati=ok_count, falliti=len(rows) - ok_count)
+          target=desc_key, inviati=ok_count, falliti=len(rows) - ok_count)
     return _page(request, db, "admin_message.html", sess, me, sent=True,
-                 people=people, target=target, description=descrizione,
+                 people=people, target=target, description=desc_key,
+                 description_arg=desc_arg,
                  subject=subject, body=body, problem="", rows=rows)

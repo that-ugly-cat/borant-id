@@ -38,15 +38,23 @@ def _build(cfg: dict, to: str, subject: str, body: str) -> EmailMessage:
 
 
 def send(db, to: str, subject: str, body: str) -> tuple[bool, str]:
-    """(ok, error). Never raises — see the module docstring."""
+    """(ok, error). Never raises — see the module docstring.
+
+    `error` is a **code** for the failures this module can name — `smtp_off`,
+    `smtp_incomplete`, `no_recipient`, `auth_refused <smtp code>` — and raw
+    library text for the ones it cannot. `locales.mail_error` turns the first
+    kind into a sentence in the reader's language and leaves the second alone,
+    because `ConnectError: [Errno 111]` is nobody's language and translating it
+    would only make it harder to search for.
+    """
     cfg = settings.smtp_config(db)
 
     if not cfg["enabled"]:
-        return False, "SMTP non attivo: configuralo in /admin/config"
+        return False, "smtp_off"
     if not cfg["host"] or not cfg["from_email"]:
-        return False, "SMTP incompleto: mancano host o indirizzo mittente"
+        return False, "smtp_incomplete"
     if not to:
-        return False, "Nessun destinatario"
+        return False, "no_recipient"
 
     msg = _build(cfg, to, subject, body)
 
@@ -70,15 +78,13 @@ def send(db, to: str, subject: str, body: str) -> tuple[bool, str]:
         return True, ""
 
     except smtplib.SMTPAuthenticationError as e:
-        # The single most likely failure, and worth naming precisely: Infomaniak
-        # wants the mailbox password (2FA does not apply to SMTP), Gmail wants an
-        # app password, and many Microsoft 365 tenants disable SMTP AUTH
-        # outright (SPEC.md §15). The error text stays in Italian: it is read by
-        # the administrator in the admin panel, not by a recipient.
-        return False, (f"Autenticazione SMTP rifiutata ({e.smtp_code}). "
-                       "Su Infomaniak serve la password della casella; con "
-                       "Gmail una app password; su Microsoft 365 il tenant "
-                       "potrebbe avere SMTP AUTH disabilitato.")
+        # The single most likely failure, and worth naming precisely:
+        # Infomaniak wants the mailbox password (2FA does not apply to SMTP),
+        # Gmail wants an app password, and many Microsoft 365 tenants disable
+        # SMTP AUTH outright (SPEC.md §15). The sentence lives in the locales
+        # now — the admin panel speaks four languages — and the numeric code
+        # rides along as the detail, since a number is the same everywhere.
+        return False, f"auth_refused {e.smtp_code}"
     except (smtplib.SMTPException, ssl.SSLError, OSError) as e:
         return False, f"{type(e).__name__}: {e}"
 
