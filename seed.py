@@ -101,12 +101,13 @@ PERIMETER = [
      "PubMed literature analysis platform"),
     ("paper2md",    "paper2md",    "paper2md.borant.eu",    [], "",
      "PDF-to-clean-text extraction service"),
-    # Ruoli **vuoti**, e non per pigrizia: in TheList il ruolo e' per-board
-    # (owner della propria lista, editor su invito) e vive nella tabella
-    # `memberships`. Il gate non ha niente da suggerire, e infatti l'app non
-    # legge nessun header di hint: il grant apre la porta, il ruolo lo decide
-    # chi possiede la lista.
-    ("thelist",     "TheList",     "thelist.borant.eu",     [], "",
+    # `admin` dal 27/8/2026, e serve dire cosa NON e'. Il ruolo di dominio di
+    # TheList e' **per-board** (owner della propria lista, editor su invito),
+    # vive in `memberships` e il gate non lo suggerisce mai. `admin` qui e' un
+    # asse diverso: configura il relay SMTP che usano tutti e disattiva account,
+    # e **non apre la lista di nessuno** — leggere una board e' una membership,
+    # e l'amministrazione non ne concede.
+    ("thelist",     "TheList",     "thelist.borant.eu",     [], "admin",
      "Shared list of macro-tasks"),
 ]
 
