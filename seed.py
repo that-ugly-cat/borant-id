@@ -101,6 +101,13 @@ PERIMETER = [
      "PubMed literature analysis platform"),
     ("paper2md",    "paper2md",    "paper2md.borant.eu",    [], "",
      "PDF-to-clean-text extraction service"),
+    # Ruoli **vuoti**, e non per pigrizia: in TheList il ruolo e' per-board
+    # (owner della propria lista, editor su invito) e vive nella tabella
+    # `memberships`. Il gate non ha niente da suggerire, e infatti l'app non
+    # legge nessun header di hint: il grant apre la porta, il ruolo lo decide
+    # chi possiede la lista.
+    ("thelist",     "TheList",     "thelist.borant.eu",     [], "",
+     "Shared list of macro-tasks"),
 ]
 
 
