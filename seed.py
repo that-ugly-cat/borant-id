@@ -76,6 +76,19 @@ PERIMETER = [
     # non spende: gli altri quattro sono onorati ma scrivono un warning.
     ("argumap",     "ArguMap",     "argumap.borant.eu",     ["/admin"],
      "basic, standard, full, teacher, admin", "Argument mapping platform"),
+    # Nata dentro il perimetro il 3/9/2026, quattordicesima. `admin` perche' il
+    # contratto dichiara **cosa l'app legge dall'hint**, e catena lo legge: lo
+    # scrive in `users.is_admin` e rifiuta a voce alta qualunque altro valore.
+    # Va detto pero' cosa quel flag apre oggi: **niente**. Non c'e' un pannello,
+    # `require_admin` esiste e nessuna rotta lo usa. E' dichiarato perche' il
+    # giorno in cui il pannello arriva il flag sia gia' quello giusto sulle
+    # righe nate dal gate, non perche' il menu cambi qualcosa adesso.
+    # Niente `2F`: catena non ha un TOTP suo, quindi il gate lo aggiungerebbe
+    # invece di ereditarlo — stessa ragione di Contrarian e LSSR. Da rivedere se
+    # le chiavi Zotero (che stanno in chiaro nel DB, leggibili da `/profile`)
+    # diventano una classe di segreti che vale un secondo fattore.
+    ("catena",      "catena",      "catena.borant.eu",      [], "admin",
+     "Zotero references inside Word documents, with the reason attached"),
 
     # categoria A — solo la porta, nessun provisioning, nessun hint
     # `/` e non `/admin`: Survey impone il TOTP da sé su qualunque pagina da
