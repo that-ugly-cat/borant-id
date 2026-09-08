@@ -250,6 +250,32 @@ docker network inspect borant_provision -f '{{(index .IPAM.Config 0).Subnet}}'
 `172.17.0.0/16` è il *bridge di default*, che è un'altra cosa. Quel valore è ciò
 che va in `PROVISION_TRUSTED` dentro l'app.
 
+**La trappola che costa il login, e si paga subito.** Aggiungere una seconda
+rete a un container **cambia l'indirizzo da cui il proxy sembra arrivare**.
+Docker sceglie fra i gateway delle reti del container in ordine alfabetico di
+nome, quindi su RoomPulse `borant_provision` è passata davanti a
+`roompulse_default` e le richieste di Caddy hanno smesso di arrivare da
+`192.168.0.1` per arrivare da `192.168.240.1`. Il valore in
+`BORANT_TRUSTED_PROXY` non combaciava più, l'app ha ignorato gli header del gate,
+e **nessuno poteva più entrare** — verificato in produzione l'8 settembre 2026,
+con tre righe `X-Borant-Sub da 192.168.240.1, fuori da BORANT_TRUSTED_PROXY` nel
+log. Su ArguMap l'ordine è caduto dall'altra parte (`argumap_default` viene prima)
+e non è successo niente, che è il modo peggiore di scoprire una regola.
+
+Quindi, insieme alla rete, **sempre**: `BORANT_TRUSTED_PROXY` diventa una lista
+con dentro anche il gateway di `borant_provision`.
+
+```
+BORANT_TRUSTED_PROXY=192.168.0.1,192.168.240.1
+```
+
+Il campo accetta virgole e CIDR da sempre. Metterceli tutt'e due non è
+ridondanza difensiva: è che l'ordine può cambiare al prossimo `up -d` senza che
+nessuno abbia toccato niente. E la verifica non è «l'app risponde 200» — una
+pagina gated risponde 302 sia perché non sei loggato sia perché l'app ha
+buttato via l'identità. Si prova **con una sessione vera**, e si guarda il log
+dell'app.
+
 Poi, per ogni app che ci sta dentro:
 
 1. Aggiungi la rete a **tutt'e due** i compose, quello dell'app e questo:
