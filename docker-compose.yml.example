@@ -10,6 +10,13 @@ services:
       - "127.0.0.1:8019:8019"
     volumes:
       - ./data:/app/data
+    # `borant_provision` serve solo al provisioning anticipato (DEPLOY.md §5):
+    # è la rete su cui il gate raggiunge i container delle app per nome, senza
+    # passare da Caddy e senza toccare le porte pubblicate, che restano sul
+    # loopback. Se non usi il push, togli queste due voci e la sezione in fondo.
+    networks:
+      - default
+      - borant_provision
     environment:
       - FERNET_KEY=${FERNET_KEY}
       - COOKIE_DOMAIN=${COOKIE_DOMAIN:-.borant.eu}
@@ -22,3 +29,9 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+networks:
+  # Creata a mano una volta sola, e condivisa con le app che ricevono il push:
+  #   docker network create borant_provision
+  borant_provision:
+    external: true

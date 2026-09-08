@@ -495,6 +495,48 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "adm_apps_2f_paths": "%(n)s path a due fattori",
         "adm_apps_require_grant": "Richiedi grant",
         "adm_apps_open_all_btn": "Apri a tutti",
+        "adm_apps_h_prov": "Provisioning anticipato",
+        "adm_apps_prov_url_l": "Indirizzo di provisioning",
+        "adm_apps_prov_url_ph": "http://roompulse:8080/internal/provision",
+        "adm_apps_prov_secret_l": "Segreto condiviso",
+        "adm_apps_prov_secret_ph": "vuoto: il push resta spento",
+        "adm_apps_prov_secret_kept": "impostato — lascia vuoto per non cambiarlo",
+        "adm_apps_prov_save": "Salva",
+        "adm_apps_prov_note": "Con questi due campi pieni, il gate avvisa "
+                              "l'app di chi può entrare <strong>prima</strong> "
+                              "che quella persona ci arrivi: il profilo esiste "
+                              "già, e la sera prima della lezione lo si può "
+                              "assegnare a un gruppo. L'indirizzo è quello del "
+                              "container sulla rete docker condivisa, mai il "
+                              "nome pubblico. Lasciarli vuoti <strong>non "
+                              "rompe niente</strong>: i profili nascono al "
+                              "primo accesso, come hanno sempre fatto.",
+        "adm_apps_prov_resync": "Risincronizza",
+        "adm_apps_prov_clear": "Spegni il push",
+        "adm_apps_prov_off": "Push spento: i profili nascono al primo accesso.",
+        "adm_apps_prov_badge": "push",
+        "adm_apps_prov_badge_t": "Quest'app viene avvisata in anticipo di chi "
+                                 "può entrare",
+        "adm_push_h": "Annuncio alle app",
+        "adm_push_sub": "Cosa hanno risposto le app avvisate in anticipo.",
+        "adm_push_created": "%(n)s creati",
+        "adm_push_already": "%(n)s già presenti",
+        "adm_push_conflict": "%(n)s conflitti",
+        "adm_push_conflict_note": "Di là esiste già un profilo con questo "
+                                  "indirizzo, e non è legato a nessuno. Il "
+                                  "gate <strong>non indovina</strong>: legare "
+                                  "per email significa che un refuso fonde due "
+                                  "account. Si risolve a mano sull'app, con "
+                                  "<code>map_borant.py --map indirizzo=subject</code>.",
+        "adm_push_col_sub": "Subject",
+        "adm_push_failed": "non riuscito",
+        "adm_push_failed_note": "Nessuno è rimasto fuori: chi non è stato "
+                                "annunciato avrà comunque il suo profilo al "
+                                "primo accesso, come prima. Quando l'app "
+                                "torna, «Risincronizza» rimette tutto a posto.",
+        "adm_resync_title": "Risincronizzazione",
+        "adm_resync_sub": "%(n)s persone annunciate a %(app)s.",
+        "adm_resync_back": "Torna agli strumenti",
         "adm_apps_h_roles": "Ruoli",
         "adm_apps_roles_ph2": "vuoto = questa app non ha ruoli, e il campo "
                               "sparisce dalle form",
@@ -1037,6 +1079,47 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "adm_apps_2f_paths": "%(n)s two-factor paths",
         "adm_apps_require_grant": "Require a grant",
         "adm_apps_open_all_btn": "Open to everyone",
+        "adm_apps_h_prov": "Provisioning in advance",
+        "adm_apps_prov_url_l": "Provisioning address",
+        "adm_apps_prov_url_ph": "http://roompulse:8080/internal/provision",
+        "adm_apps_prov_secret_l": "Shared secret",
+        "adm_apps_prov_secret_ph": "empty: push stays off",
+        "adm_apps_prov_secret_kept": "set — leave empty to keep it",
+        "adm_apps_prov_save": "Save",
+        "adm_apps_prov_note": "With both fields filled in, the gate tells the "
+                              "app who may enter <strong>before</strong> that "
+                              "person gets there: the profile already exists, "
+                              "and the evening before the class it can be put "
+                              "in a group. The address is the container's own "
+                              "on the shared docker network, never the public "
+                              "hostname. Leaving them empty <strong>breaks "
+                              "nothing</strong>: profiles are then created at "
+                              "first access, the way they always were.",
+        "adm_apps_prov_resync": "Resync",
+        "adm_apps_prov_clear": "Turn push off",
+        "adm_apps_prov_off": "Push off: profiles are created at first access.",
+        "adm_apps_prov_badge": "push",
+        "adm_apps_prov_badge_t": "This app is told in advance who may enter",
+        "adm_push_h": "Announced to the apps",
+        "adm_push_sub": "What the apps told in advance answered.",
+        "adm_push_created": "%(n)s created",
+        "adm_push_already": "%(n)s already there",
+        "adm_push_conflict": "%(n)s conflicts",
+        "adm_push_conflict_note": "A profile with this address already exists "
+                                  "over there, linked to nobody. The gate "
+                                  "<strong>does not guess</strong>: linking by "
+                                  "email means one typo merges two accounts. "
+                                  "Fix it by hand on the app, with "
+                                  "<code>map_borant.py --map address=subject</code>.",
+        "adm_push_col_sub": "Subject",
+        "adm_push_failed": "failed",
+        "adm_push_failed_note": "Nobody was left out: whoever was not "
+                                "announced still gets a profile at first "
+                                "access, as before. When the app is back, "
+                                "«Resync» puts everything right.",
+        "adm_resync_title": "Resync",
+        "adm_resync_sub": "%(n)s people announced to %(app)s.",
+        "adm_resync_back": "Back to the tools",
         "adm_apps_h_roles": "Roles",
         "adm_apps_roles_ph2": "empty = this tool has no roles, and the field "
                               "disappears from the forms",
@@ -1601,6 +1684,50 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "adm_apps_2f_paths": "%(n)s Pfade mit zwei Faktoren",
         "adm_apps_require_grant": "Grant verlangen",
         "adm_apps_open_all_btn": "Für alle öffnen",
+        "adm_apps_h_prov": "Vorzeitige Provisionierung",
+        "adm_apps_prov_url_l": "Provisionierungsadresse",
+        "adm_apps_prov_url_ph": "http://roompulse:8080/internal/provision",
+        "adm_apps_prov_secret_l": "Gemeinsames Geheimnis",
+        "adm_apps_prov_secret_ph": "leer: Push bleibt aus",
+        "adm_apps_prov_secret_kept": "gesetzt — leer lassen, um es zu behalten",
+        "adm_apps_prov_save": "Speichern",
+        "adm_apps_prov_note": "Sind beide Felder ausgefüllt, sagt das Gate der "
+                              "App, wer hinein darf, <strong>bevor</strong> "
+                              "die Person dort ankommt: das Profil existiert "
+                              "bereits, und am Abend vor der Vorlesung lässt "
+                              "es sich einer Gruppe zuordnen. Die Adresse ist "
+                              "die des Containers im gemeinsamen "
+                              "Docker-Netzwerk, nie der öffentliche Hostname. "
+                              "Leer lassen <strong>bricht nichts</strong>: die "
+                              "Profile entstehen dann beim ersten Zugriff, so "
+                              "wie immer.",
+        "adm_apps_prov_resync": "Neu abgleichen",
+        "adm_apps_prov_clear": "Push ausschalten",
+        "adm_apps_prov_off": "Push aus: Profile entstehen beim ersten Zugriff.",
+        "adm_apps_prov_badge": "Push",
+        "adm_apps_prov_badge_t": "Dieser App wird vorab mitgeteilt, wer hinein "
+                                 "darf",
+        "adm_push_h": "Den Apps angekündigt",
+        "adm_push_sub": "Was die vorab benachrichtigten Apps geantwortet haben.",
+        "adm_push_created": "%(n)s angelegt",
+        "adm_push_already": "%(n)s bereits vorhanden",
+        "adm_push_conflict": "%(n)s Konflikte",
+        "adm_push_conflict_note": "Dort existiert bereits ein Profil mit "
+                                  "dieser Adresse, ohne Verknüpfung. Das Gate "
+                                  "<strong>rät nicht</strong>: eine "
+                                  "Verknüpfung über die E-Mail bedeutet, dass "
+                                  "ein Tippfehler zwei Konten verschmilzt. Von "
+                                  "Hand in der App lösen, mit "
+                                  "<code>map_borant.py --map adresse=subject</code>.",
+        "adm_push_col_sub": "Subject",
+        "adm_push_failed": "fehlgeschlagen",
+        "adm_push_failed_note": "Niemand bleibt draußen: wer nicht angekündigt "
+                                "wurde, bekommt sein Profil weiterhin beim "
+                                "ersten Zugriff, wie zuvor. Ist die App zurück, "
+                                "bringt «Neu abgleichen» alles in Ordnung.",
+        "adm_resync_title": "Neuer Abgleich",
+        "adm_resync_sub": "%(n)s Personen an %(app)s angekündigt.",
+        "adm_resync_back": "Zurück zu den Werkzeugen",
         "adm_apps_h_roles": "Rollen",
         "adm_apps_roles_ph2": "leer = dieses Werkzeug hat keine Rollen, und das "
                               "Feld verschwindet aus den Formularen",
@@ -2172,6 +2299,50 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "adm_apps_2f_paths": "%(n)s chemins à deux facteurs",
         "adm_apps_require_grant": "Exiger un grant",
         "adm_apps_open_all_btn": "Ouvrir à tous",
+        "adm_apps_h_prov": "Provisionnement anticipé",
+        "adm_apps_prov_url_l": "Adresse de provisionnement",
+        "adm_apps_prov_url_ph": "http://roompulse:8080/internal/provision",
+        "adm_apps_prov_secret_l": "Secret partagé",
+        "adm_apps_prov_secret_ph": "vide : le push reste éteint",
+        "adm_apps_prov_secret_kept": "défini — laisser vide pour le conserver",
+        "adm_apps_prov_save": "Enregistrer",
+        "adm_apps_prov_note": "Ces deux champs remplis, la porte annonce à "
+                              "l'outil qui peut entrer <strong>avant</strong> "
+                              "que la personne n'y arrive : le profil existe "
+                              "déjà, et la veille du cours on peut l'affecter "
+                              "à un groupe. L'adresse est celle du conteneur "
+                              "sur le réseau docker partagé, jamais le nom "
+                              "public. Les laisser vides <strong>ne casse "
+                              "rien</strong> : les profils naissent alors au "
+                              "premier accès, comme toujours.",
+        "adm_apps_prov_resync": "Resynchroniser",
+        "adm_apps_prov_clear": "Éteindre le push",
+        "adm_apps_prov_off": "Push éteint : les profils naissent au premier "
+                             "accès.",
+        "adm_apps_prov_badge": "push",
+        "adm_apps_prov_badge_t": "Cet outil est prévenu à l'avance de qui peut "
+                                 "entrer",
+        "adm_push_h": "Annoncé aux outils",
+        "adm_push_sub": "Ce qu'ont répondu les outils prévenus à l'avance.",
+        "adm_push_created": "%(n)s créés",
+        "adm_push_already": "%(n)s déjà présents",
+        "adm_push_conflict": "%(n)s conflits",
+        "adm_push_conflict_note": "Un profil portant cette adresse existe déjà "
+                                  "là-bas, sans aucun lien. La porte <strong>ne "
+                                  "devine pas</strong> : lier par courriel "
+                                  "signifie qu'une faute de frappe fusionne "
+                                  "deux comptes. À résoudre à la main sur "
+                                  "l'outil, avec "
+                                  "<code>map_borant.py --map adresse=subject</code>.",
+        "adm_push_col_sub": "Subject",
+        "adm_push_failed": "échoué",
+        "adm_push_failed_note": "Personne n'est resté dehors : qui n'a pas été "
+                                "annoncé aura son profil au premier accès, "
+                                "comme avant. Quand l'outil revient, "
+                                "«Resynchroniser» remet tout en place.",
+        "adm_resync_title": "Resynchronisation",
+        "adm_resync_sub": "%(n)s personnes annoncées à %(app)s.",
+        "adm_resync_back": "Retour aux outils",
         "adm_apps_h_roles": "Rôles",
         "adm_apps_roles_ph2": "vide = cet outil n'a pas de rôles, et le champ "
                               "disparaît des formulaires",

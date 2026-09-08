@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ t.adm_resync_title }} — {{ site_name }}{% endblock %}
+{% block body %}
+<h1>{{ t.adm_resync_title }}</h1>
+<p class="sub">{{ t.adm_resync_sub | format(app=app.name, n=result.sent) }}</p>
+
+{% set pushed = {app.name: result} %}
+{% include "_push_result.html" %}
+
+<div class="actions">
+  <a class="btn" href="/admin/apps#a{{ app.id }}">{{ t.adm_resync_back }}</a>
+</div>
+{% endblock %}

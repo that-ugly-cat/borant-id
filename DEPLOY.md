@@ -227,6 +227,76 @@ lssr.borant.eu {
 `AUTH_MODE=local` nell'`.env` dell'app più `docker compose up -d`, e togliere
 `import borantid` dal blocco Caddy. La prima da sola basta.
 
+## 5. Provisioning anticipato — opzionale, e per app
+
+Serve a una cosa: che il profilo di una persona esista nell'app **prima** che
+quella persona ci arrivi. Senza, un centinaio di studenti non esiste di là
+finché non ha cliccato, quindi non lo si può mettere in un workspace o in un
+corso, e la preparazione di una lezione si sposta dalla sera prima al minuto
+dopo l'inizio. È un'aggiunta e non un requisito: le app dove non lo accendi
+continuano a creare i profili al primo accesso, come hanno sempre fatto.
+
+**Una rete docker interna, e il bind sul loopback non si tocca.** Le porte
+pubblicate restano su `127.0.0.1` (invariante §4). Questa è una seconda rete,
+dove il gate e l'app si chiamano per nome senza passare da Caddy e senza
+esistere per internet.
+
+```bash
+docker network create borant_provision
+docker network inspect borant_provision -f '{{(index .IPAM.Config 0).Subnet}}'
+```
+
+**La sottorete si legge, non si indovina**: la sceglie docker, e
+`172.17.0.0/16` è il *bridge di default*, che è un'altra cosa. Quel valore è ciò
+che va in `PROVISION_TRUSTED` dentro l'app.
+
+Poi, per ogni app che ci sta dentro:
+
+1. Aggiungi la rete a **tutt'e due** i compose, quello dell'app e questo:
+
+   ```yaml
+   services:
+     borantid:
+       networks: [default, borant_provision]
+   networks:
+     borant_provision:
+       external: true
+   ```
+
+2. Nell'`.env` dell'app: `PROVISION_SECRET` (una stringa lunga a caso) e
+   `PROVISION_TRUSTED` (la sottorete letta sopra). Mancandone una, la rotta di
+   là risponde 404 come se non ci fosse.
+
+3. Qui, in `/admin/apps` → l'app → **Provisioning anticipato**: lo stesso
+   segreto, e l'indirizzo del container. Attenzione alla porta: è quella su cui
+   l'app ascolta **dentro** il container, non quella pubblicata sull'host.
+
+   | app | indirizzo | porta host, da non usare |
+   |---|---|---|
+   | roompulse | `http://roompulse:8080/internal/provision` | 8011 |
+   | argumap | `http://argumap:8000/internal/provision` | 8012 |
+
+4. Premi **«Risincronizza»**. Spinge chi ha già un grant, ed è la prova che il
+   cablaggio funziona: se torna un numero, funziona; se torna «non riuscito»,
+   il messaggio dice se è la rete (`ConnectError`) o il segreto (`http_404`).
+
+**Cosa può fare la rotta di là, e cosa no.** Crea profili che non ci sono, e
+basta: non aggiorna, non promuove, non disattiva. Un segreto rubato compra
+account vuoti, non il lavoro di qualcuno — ed è la ragione per cui questo non
+viola il §2. Non lega mai per indirizzo: un profilo locale che ha già quella
+email e nessun `borant_sub` torna indietro come **conflitto**, intatto, e si
+risolve con `map_borant.py` sull'app.
+
+**Il modo `invito` spinge all'accettazione, non all'invio.** Finché l'invito non
+è accettato non esiste un account, quindi non c'è nessun subject da annunciare.
+È visibile nella pagina del batch: in modo `crea` i numeri del push compaiono
+subito, in modo `invito` arrivano uno alla volta man mano che la gente accetta.
+
+**Conseguenza da sapere, non da temere.** Con il push acceso, il profilo orfano
+diventa la norma: revocare un grant qui lascia comunque il profilo di là, anche
+per chi non è mai entrato. È il limite già noto della cancellazione (SPEC §19),
+che adesso capita più spesso.
+
 ## Manutenzione
 
 ```bash

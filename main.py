@@ -22,7 +22,7 @@ import os
 from datetime import timedelta
 from urllib.parse import quote, urlparse
 
-from fastapi import Cookie, Depends, FastAPI, Form, Request
+from fastapi import BackgroundTasks, Cookie, Depends, FastAPI, Form, Request
 from fastapi.responses import (
     HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response,
 )
@@ -34,6 +34,7 @@ import auth
 import locales
 import mailer
 import orcid
+import push
 import settings
 import totp as totplib
 from crypto import decrypt_or_none, encrypt
@@ -691,7 +692,8 @@ def invite_form(raw: str, request: Request, db: DbSession = Depends(get_db)):
 
 
 @app.post("/invite/{raw}", response_class=HTMLResponse)
-def invite_accept(raw: str, request: Request, name: str = Form(""),
+def invite_accept(raw: str, request: Request, background: BackgroundTasks,
+                  name: str = Form(""),
                   password: str = Form(""), password2: str = Form(""),
                   db: DbSession = Depends(get_db)):
     t = tr(request)
@@ -730,6 +732,16 @@ def invite_accept(raw: str, request: Request, name: str = Form(""),
 
     ip = client_ip(request)
     audit(db, "invite.accepted", user=user, ip=ip)
+    # Qui, e non al momento dell'invito: fino a un attimo fa esisteva solo un
+    # token, senza account e quindi senza subject da annunciare. Chi accetta di
+    # solito va dritto nell'app, quindi l'anticipo è di secondi — ma sono i
+    # secondi in cui altrimenti nascerebbe il profilo di corsa, ed è lì che due
+    # richieste parallele fanno la race che il §10-bis chiude.
+    for app_id in (data.get("grants") or {}):
+        app_row = db.get(App, int(app_id))
+        if app_row is not None and app_row.provisions:
+            background.add_task(push.push_later, app_row.id, user.id)
+
     token = auth.create_session(db, user, ip=ip, ua=user_agent(request))
     r = RedirectResponse("/profile", status_code=303)
     auth.set_cookie(r, token)

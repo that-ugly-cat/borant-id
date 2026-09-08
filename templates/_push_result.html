@@ -1,0 +1,32 @@
+{# I numeri che l'app ha risposto al push. Un solo posto, perché lo mostrano
+   sia la pagina del batch sia quella del risync, e due copie divergerebbero.
+   Si aspetta `pushed`: {nome app: risultato}. #}
+{% for app_name, r in pushed.items() %}
+  <div class="card">
+    <p class="lead">{{ app_name }}</p>
+    {% if r.ok %}
+      <p>
+        <span class="badge badge-ok">{{ t.adm_push_created | format(n=r.created) }}</span>
+        <span class="badge badge-muted">{{ t.adm_push_already | format(n=r.already) }}</span>
+        {% if r.conflict %}
+          <span class="badge badge-warn">{{ t.adm_push_conflict | format(n=r.conflict) }}</span>
+        {% endif %}
+      </p>
+      {% if r.conflicts %}
+        <p class="note">{{ t.adm_push_conflict_note | safe }}</p>
+        <div class="table-wrap">
+          <table class="table">
+            <tr><th>{{ t.email }}</th><th>{{ t.adm_push_col_sub }}</th></tr>
+            {% for c in r.conflicts %}
+              <tr><td class="mono">{{ c.email }}</td><td class="mono break">{{ c.subject }}</td></tr>
+            {% endfor %}
+          </table>
+        </div>
+      {% endif %}
+    {% else %}
+      <p><span class="badge badge-danger">{{ t.adm_push_failed }}</span>
+         <span class="mono">{{ r.error }}</span></p>
+      <p class="note">{{ t.adm_push_failed_note | safe }}</p>
+    {% endif %}
+  </div>
+{% endfor %}

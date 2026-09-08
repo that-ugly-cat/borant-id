@@ -36,6 +36,12 @@
   </div>
 </div>
 
+{% if pushed %}
+  <h2>{{ t.adm_push_h }}</h2>
+  <p class="sub">{{ t.adm_push_sub }}</p>
+  {% include "_push_result.html" %}
+{% endif %}
+
 <div class="actions">
   <a class="btn" href="/admin/users">{{ t.adm_back_users }}</a>
 </div>

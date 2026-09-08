@@ -67,6 +67,9 @@
         {% if a.role_list() %}
           <span class="badge badge-muted">{{ a.role_list() | join(' · ') }}</span>
         {% endif %}
+        {% if a.provisions %}
+          <span class="badge badge-ok" title="{{ t.adm_apps_prov_badge_t }}">{{ t.adm_apps_prov_badge }}</span>
+        {% endif %}
       </span>
       <span class="sum-line sum-side">
         <span class="mono">{{ a.host }}</span>
@@ -101,6 +104,40 @@
       <div class="fixed"><button class="btn btn-small" type="submit">{{ t.adm_apps_save_roles }}</button></div>
     </form>
     <p class="note">{{ t.adm_apps_roles_note | safe }}</p>
+
+    <h3>{{ t.adm_apps_h_prov }}</h3>
+    <form method="post" action="/admin/apps/{{ a.id }}/provision" class="row">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <div>
+        <label for="prov_url{{ a.id }}">{{ t.adm_apps_prov_url_l }}</label>
+        <input id="prov_url{{ a.id }}" name="provision_url" class="mono"
+               value="{{ a.provision_url }}" placeholder="{{ t.adm_apps_prov_url_ph }}">
+      </div>
+      <div>
+        <label for="prov_sec{{ a.id }}">{{ t.adm_apps_prov_secret_l }}</label>
+        <input id="prov_sec{{ a.id }}" name="provision_secret" type="password"
+               autocomplete="new-password"
+               placeholder="{{ t.adm_apps_prov_secret_kept if a.provision_secret
+                               else t.adm_apps_prov_secret_ph }}">
+      </div>
+      <div class="fixed"><button class="btn btn-small" type="submit">{{ t.adm_apps_prov_save }}</button></div>
+    </form>
+    <p class="note">{{ t.adm_apps_prov_note | safe }}</p>
+    <div class="actions">
+      {% if a.provisions %}
+        <form method="post" action="/admin/apps/{{ a.id }}/resync" class="inline">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button class="btn btn-small" type="submit">{{ t.adm_apps_prov_resync }}</button>
+        </form>
+        <form method="post" action="/admin/apps/{{ a.id }}/provision" class="inline">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="hidden" name="clear" value="1">
+          <button class="btn btn-small" type="submit">{{ t.adm_apps_prov_clear }}</button>
+        </form>
+      {% else %}
+        <span class="note">{{ t.adm_apps_prov_off }}</span>
+      {% endif %}
+    </div>
 
     <h3>{{ t.adm_apps_h_policy }}</h3>
     <div class="table-wrap">

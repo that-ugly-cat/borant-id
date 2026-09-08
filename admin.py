@@ -15,12 +15,15 @@ import secrets
 from datetime import timedelta
 from urllib.parse import quote
 
-from fastapi import APIRouter, Cookie, Depends, Form, Request
+from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session as DbSession
+from starlette.concurrency import run_in_threadpool
 
 import auth
+import crypto
 import mailer
+import push
 import settings
 from models import (
     ONE_FACTOR, TWO_FACTOR, AccessRequest, App, Audit, Grant, Policy,
@@ -266,7 +269,8 @@ def reset_2fa(uid: int, request: Request, csrf: str = Form(""),
 
 
 @router.post("/users/{uid}/grant")
-def set_grant(uid: int, request: Request, app_id: int = Form(0),
+def set_grant(uid: int, request: Request, background: BackgroundTasks,
+              app_id: int = Form(0),
               level_hint: str = Form(""), remove: str = Form(""),
               csrf: str = Form(""),
               borant_session: str | None = Cookie(default=None),
@@ -297,6 +301,12 @@ def set_grant(uid: int, request: Request, app_id: int = Form(0),
     auth.invalidate_registry()
     audit(db, f"grant.{action}", user=me, ip=_ip(request), target=u.email,
           app=a.slug, hint=level_hint)
+    # Solo concedendo, e dopo la risposta. Revocare non spinge niente: il push
+    # crea e basta, e un profilo già nato dall'altra parte non si cancella da
+    # qui (§19). Aggiornare l'hint nemmeno, perché l'hint vale alla creazione e
+    # dopo i ruoli li possiede l'app.
+    if action == "granted" and a.provisions:
+        background.add_task(push.push_later, a.id, u.id)
     return RedirectResponse(f"/admin/users#u{uid}", status_code=303)
 
 
@@ -383,6 +393,72 @@ def app_roles(aid: int, request: Request, roles: str = Form(""),
         audit(db, "app.roles_set", user=me, ip=_ip(request), slug=a.slug,
               roles=cleaned)
     return RedirectResponse(f"/admin/apps#a{aid}", status_code=303)
+
+
+@router.post("/apps/{aid}/provision")
+def app_provision(aid: int, request: Request, provision_url: str = Form(""),
+                  provision_secret: str = Form(""), clear: str = Form(""),
+                  csrf: str = Form(""),
+                  borant_session: str | None = Cookie(default=None),
+                  db: DbSession = Depends(get_db)):
+    """Dove avvisare quest'app, in anticipo, di chi può entrare.
+
+    Il segreto si scrive e non si rilegge, come la password SMTP: il campo è
+    vuoto ogni volta che si apre la pagina, e lasciarlo vuoto **non lo
+    cancella** — altrimenti salvare l'indirizzo lo azzererebbe ogni volta. Per
+    toglierlo c'è `clear`, che spegne tutt'e due i campi insieme, perché un URL
+    senza segreto sarebbe una chiamata senza credenziale.
+    """
+    sess, me, redirect = _guard(db, borant_session)
+    if redirect:
+        return redirect
+    a = db.get(App, aid)
+    if a is None or not _csrf_ok(sess, csrf):
+        return RedirectResponse("/admin/apps", status_code=303)
+
+    if clear:
+        a.provision_url = ""
+        a.provision_secret = ""
+    else:
+        a.provision_url = provision_url.strip()
+        if provision_secret.strip():
+            a.provision_secret = crypto.encrypt(provision_secret.strip())
+    db.commit()
+    audit(db, "app.provision_set", user=me, ip=_ip(request), slug=a.slug,
+          url=a.provision_url, armed=a.provisions)
+    return RedirectResponse(f"/admin/apps#a{aid}", status_code=303)
+
+
+@router.post("/apps/{aid}/resync", response_class=HTMLResponse)
+async def app_resync(aid: int, request: Request, csrf: str = Form(""),
+                     borant_session: str | None = Cookie(default=None),
+                     db: DbSession = Depends(get_db)):
+    """Rispinge tutto il roster di quest'app.
+
+    È l'attrezzo di riparazione: serve quando l'app era giù al momento del
+    batch, quando il provisioning viene acceso su un'app che ha già i suoi
+    grant, e ogni volta che si ha il dubbio. Si può premere quante volte si
+    vuole — chi c'è già dall'altra parte viene contato e non toccato.
+
+    In `run_in_threadpool` e non inline: il gate ha un worker solo e sta sul
+    percorso critico di tutte le app (§12), quindi un'attesa di rete non deve
+    mai passare dal suo event loop.
+    """
+    sess, me, redirect = _guard(db, borant_session)
+    if redirect:
+        return redirect
+    a = db.get(App, aid)
+    if a is None or not _csrf_ok(sess, csrf):
+        return RedirectResponse("/admin/apps", status_code=303)
+    if not a.provisions:
+        return RedirectResponse(f"/admin/apps#a{aid}", status_code=303)
+
+    entries = push.roster(db, a)
+    result = await run_in_threadpool(push.send, a, entries)
+    audit(db, "app.resync", user=me, ip=_ip(request), slug=a.slug,
+          **{k: result[k] for k in ("ok", "created", "already", "conflict", "error")})
+    return _page(request, db, "admin_resync.html", sess, me, app=a,
+                 result=result)
 
 
 @router.post("/apps/{aid}/access")
@@ -599,7 +675,8 @@ def config_test(request: Request, to: str = Form(""), csrf: str = Form(""),
 # un ruolo che spende (SPEC.md §18).
 
 @router.post("/requests/{rid}/approve")
-def request_approve(rid: int, request: Request, level_hint: str = Form(""),
+def request_approve(rid: int, request: Request, background: BackgroundTasks,
+                    level_hint: str = Form(""),
                     csrf: str = Form(""),
                     borant_session: str | None = Cookie(default=None),
                     db: DbSession = Depends(get_db)):
@@ -625,6 +702,11 @@ def request_approve(rid: int, request: Request, level_hint: str = Form(""),
     if req.user and req.user.email:
         mailer.send_access_granted(db, req.user.email, req.app.name,
                                    req.app.host)
+    # Il profilo esiste di là prima che la mail «ti ho dato accesso» venga
+    # letta: è il caso in cui l'anticipo serve di più, perché la persona ci
+    # clicca sopra subito.
+    if req.app.provisions:
+        background.add_task(push.push_later, req.app_id, req.user_id)
     return RedirectResponse("/admin/users", status_code=303)
 
 
@@ -701,59 +783,96 @@ async def users_batch(request: Request, people: str = Form(""),
             app_id = key[len("app_"):]
             grants[app_id] = (form.get(f"hint_{app_id}") or "").strip()
 
-    rows = []
-    for email, name in _parse_people(people):
-        existing = db.query(User).filter(User.email == email).first()
-        if existing is not None:
-            # Non si tocca chi c'è già: si aggiungono solo i grant mancanti,
-            # perché un batch rilanciato per sbaglio non deve azzerare nulla.
-            for app_id, hint in grants.items():
-                if not db.query(Grant).filter(
-                        Grant.user_id == existing.id,
-                        Grant.app_id == int(app_id)).first():
-                    db.add(Grant(user_id=existing.id, app_id=int(app_id),
-                                 level_hint=hint, created_by=me.display))
-            db.commit()
-            rows.append({"email": email, "kind": "existing",
-                         "detail": "", "extra": ""})
-            continue
+    # Tutto il ciclo esce dall'event loop, e non è un dettaglio di stile. Cento
+    # persone in modo `create` sono cento bcrypt, in modo `invite` cento
+    # connessioni SMTP aperte una per messaggio: sincroni qui dentro, sono uno
+    # o due minuti in cui il gate non risponde, e il gate che non risponde
+    # significa **tutte** le app ferme, non questa pagina lenta (§12). bcrypt
+    # rilascia il GIL e smtplib aspetta la rete, quindi in un thread l'altro
+    # core continua a servire `/verify`.
+    touched: list[int] = []
 
-        if mode == "create":
-            password = secrets.token_urlsafe(12)
-            # Verificata per asserzione dell'admin: nessuna mail parte in
-            # questa modalità, quindi senza questo l'utente resterebbe in un
-            # vicolo cieco — non può chiedere altre app e non ha un link da
-            # cliccare. Nel modo `invite` la verifica arriva dall'accettazione.
-            u = User(email=email, name=name or email.split("@")[0],
-                     password_hash=auth.hash_password(password),
-                     email_verified_at=utcnow(), is_active=True)
-            db.add(u)
-            db.commit()
-            for app_id, hint in grants.items():
-                db.add(Grant(user_id=u.id, app_id=int(app_id),
-                             level_hint=hint, created_by=me.display))
-            db.commit()
-            rows.append({"email": email, "kind": "created",
-                         "detail": "", "extra": password})
-        else:
-            plain, digest = new_token()
-            db.add(Token(kind="invite", token_hash=digest, email=email,
-                         payload=json.dumps({"name": name, "grants": grants}),
-                         expires_at=utcnow() + timedelta(days=INVITE_DAYS),
-                         created_by=me.display))
-            db.commit()
-            link = f"{settings.base_url(db)}/invite/{plain}"
-            ok, err = mailer.send_invite(db, email, name, link)
-            rows.append({"email": email,
-                         "kind": "invited" if ok else "mail_failed",
-                         "detail": "" if ok else err[:80],
-                         "extra": "" if ok else link})
+    def _work() -> list[dict]:
+        rows = []
+        for email, name in _parse_people(people):
+            rows.append(_batch_person(db, me, email, name, grants, mode, touched))
+        return rows
+
+    rows = await run_in_threadpool(_work)
 
     auth.invalidate_registry()
     audit(db, "users.batch", user=me, ip=_ip(request), mode=mode,
           count=len(rows), apps=list(grants))
+
+    # Il push è inline e non in background: qui l'amministratore sta guardando,
+    # e i numeri sono la differenza fra un flusso di cui ci si fida e uno di
+    # cui non si sa niente. I conflitti che torna sono le persone che di là
+    # avevano già un profilo con quell'indirizzo: si risolvono con
+    # `map_borant.py`, e senza questa riga non si saprebbe nemmeno che ci sono.
+    pushed = await run_in_threadpool(push.push_users, db, list(grants), touched)
+    if pushed:
+        audit(db, "users.batch_pushed", user=me, ip=_ip(request),
+              **push.audit_detail(pushed))
+
     return _page(request, db, "admin_batch.html", sess, me, rows=rows,
-                 mode=mode)
+                 mode=mode, pushed=pushed)
+
+
+def _batch_person(db, me, email: str, name: str, grants: dict, mode: str,
+                  touched: list[int]) -> dict:
+    """Una riga dell'elenco incollato. Estratta dal ciclo perché quel ciclo
+    gira in un thread, e perché così `touched` — chi va annunciato alle app —
+    si riempie in un posto solo."""
+    existing = db.query(User).filter(User.email == email).first()
+    if existing is not None:
+        # Non si tocca chi c'è già: si aggiungono solo i grant mancanti,
+        # perché un batch rilanciato per sbaglio non deve azzerare nulla.
+        for app_id, hint in grants.items():
+            if not db.query(Grant).filter(
+                    Grant.user_id == existing.id,
+                    Grant.app_id == int(app_id)).first():
+                db.add(Grant(user_id=existing.id, app_id=int(app_id),
+                             level_hint=hint, created_by=me.display))
+        db.commit()
+        # Annunciato lo stesso: chi c'era già qui può non esserci ancora di là,
+        # e un batch rilanciato deve poter riparare anche quello.
+        touched.append(existing.id)
+        return {"email": email, "kind": "existing", "detail": "", "extra": ""}
+
+    if mode == "create":
+        password = secrets.token_urlsafe(12)
+        # Verificata per asserzione dell'admin: nessuna mail parte in
+        # questa modalità, quindi senza questo l'utente resterebbe in un
+        # vicolo cieco — non può chiedere altre app e non ha un link da
+        # cliccare. Nel modo `invite` la verifica arriva dall'accettazione.
+        u = User(email=email, name=name or email.split("@")[0],
+                 password_hash=auth.hash_password(password),
+                 email_verified_at=utcnow(), is_active=True)
+        db.add(u)
+        db.commit()
+        for app_id, hint in grants.items():
+            db.add(Grant(user_id=u.id, app_id=int(app_id),
+                         level_hint=hint, created_by=me.display))
+        db.commit()
+        touched.append(u.id)
+        return {"email": email, "kind": "created", "detail": "",
+                "extra": password}
+
+    plain, digest = new_token()
+    db.add(Token(kind="invite", token_hash=digest, email=email,
+                 payload=json.dumps({"name": name, "grants": grants}),
+                 expires_at=utcnow() + timedelta(days=INVITE_DAYS),
+                 created_by=me.display))
+    db.commit()
+    link = f"{settings.base_url(db)}/invite/{plain}"
+    ok, err = mailer.send_invite(db, email, name, link)
+    # Niente `touched`: nel modo `invite` l'account non esiste ancora — c'è solo
+    # un token — quindi non c'è nessun subject da annunciare. Quelle persone
+    # vengono spinte quando accettano l'invito, non adesso.
+    return {"email": email,
+            "kind": "invited" if ok else "mail_failed",
+            "detail": "" if ok else err[:80],
+            "extra": "" if ok else link}
 
 
 # ── Cancellazione utente ──────────────────────────────────────────────────────

@@ -189,10 +189,34 @@ class App(Base):
     # makes it disappear from the form rather than inviting a typo.
     roles = Column(Text, nullable=False, default="")
 
+    # Push provisioning. Where to tell this app, in advance, who may enter —
+    # e.g. `http://roompulse:8080/internal/provision`, the container's own
+    # address on a shared docker network, never the public hostname.
+    #
+    # **Empty means the app does not want to be told**, and that is the default:
+    # its profiles keep being created lazily at first access, exactly as before.
+    # Filling these two fields in is the whole opt-in, and it is visible in
+    # /admin/apps instead of hiding in an environment variable.
+    #
+    # What the far end is allowed to do is deliberately narrow (SPEC.md §10-bis):
+    # create profiles that do not exist yet, and nothing else. It never updates
+    # a profile, never changes a role, never deactivates. A stolen secret buys
+    # empty accounts, not somebody else's work — which is the difference between
+    # this and the gate being able to write into other people's databases, which
+    # §2 forbids and still forbids.
+    provision_url = Column(String, nullable=False, default="")
+    provision_secret = Column(String, nullable=False, default="")   # Fernet
+
     created_at = Column(DateTime, nullable=False, default=utcnow)
 
     def role_list(self) -> list[str]:
         return [r.strip() for r in (self.roles or "").split(",") if r.strip()]
+
+    @property
+    def provisions(self) -> bool:
+        """Both halves, or nothing. A URL without a secret would be an endpoint
+        called with no credential, which the far end refuses anyway."""
+        return bool(self.provision_url and self.provision_secret)
 
     policies = relationship("Policy", back_populates="app",
                             cascade="all, delete-orphan")
@@ -342,6 +366,8 @@ def init_db() -> None:
 # nato prima della colonna resta indietro in silenzio.
 _MIGRATIONS = [
     "ALTER TABLE apps ADD COLUMN roles TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE apps ADD COLUMN provision_url TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE apps ADD COLUMN provision_secret TEXT NOT NULL DEFAULT ''",
 ]
 
 
