@@ -122,6 +122,18 @@ PERIMETER = [
     # e l'amministrazione non ne concede.
     ("thelist",     "TheList",     "thelist.borant.eu",     [], "admin",
      "Shared list of macro-tasks"),
+    # Quindicesima, l'11/9/2026. Ruoli **vuoti** e non per dimenticanza: chi ha
+    # un grant vede la stessa pagina in sola lettura, e non c'e' nessun asse su
+    # cui distinguere due lettori.
+    # Niente **2FA**, che e' la scelta da discutere perche' survey ha `["/"]`
+    # con la ragione «lo e' anche il cruscotto che li elenca». Qui la forma e'
+    # diversa: il pannello riceve dall'esecutore una *proiezione* — conteggi,
+    # date, cosa il manifesto dichiara — e non ha nessun percorso verso il
+    # magazzino, che invece contiene i 26 segreti e i dati dei partecipanti. La
+    # classe di segreti che tocca e' vuota per costruzione, e un livello si mette
+    # su una classe di segreti e non su un URL.
+    ("backup",      "Borant Backup", "backup.borant.eu",    [], "",
+     "What is backed up, what has been proven restorable, and what is off-site"),
 ]
 
 
