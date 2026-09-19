@@ -134,6 +134,30 @@ PERIMETER = [
     # su una classe di segreti e non su un URL.
     ("backup",      "Borant Backup", "backup.borant.eu",    [], "",
      "What is backed up, what has been proven restorable, and what is off-site"),
+    # Le tre qui sotto sono state aggiunte alla lista il 19/9/2026, **dopo**
+    # essere già state registrate a mano da /admin/apps: draw l'8/9, dovetail
+    # prima, dashboard il 19/9. Il seed è idempotente e non le tocca, quindi
+    # queste righe non cambiano niente in produzione — servono perché la lista
+    # smetta di dichiarare quattordici app mentre la tabella ne ha diciassette.
+    # Un registro che mente a chi lo legge è lo stesso difetto della tabella
+    # delle porte in vps-borant.md, e si paga allo stesso modo: il giorno che
+    # qualcuno ricostruisce il gate da zero, tre app non ci sono.
+    #
+    # `roles` verificato contro il codice e non copiato dal pannello, come vuole
+    # la regola per cui si dichiara solo ciò che l'app consuma davvero:
+    # draw legge l'hint **soltanto per scrivere che lo ignora** (`draw declares
+    # no roles` in server/auth.py), dovetail lo onora per `admin` e declassa a
+    # `reader` qualunque altra cosa, e dashboard non lo guarda affatto.
+    ("draw",        "Draw",        "draw.borant.eu",        [], "",
+     "Diagrams and schemes"),
+    ("dovetail",    "Dovetail",    "dovetail.borant.eu",    [], "reader, admin",
+     "Where to send a paper: candidate journals with merit and logistics criteria"),
+    # Niente 2FA, per la stessa ragione scritta sopra per backup: questo pannello
+    # legge una proiezione della macchina — carichi, stati, sonde — e non ha
+    # nessun percorso verso i segreti o i dati dei partecipanti. La classe di
+    # segreti che tocca è vuota per costruzione.
+    ("dashboard",   "Dashboard",   "dashboard.borant.eu",   [], "",
+     "What the machine is doing now, and what it was doing an hour ago"),
 ]
 
 
