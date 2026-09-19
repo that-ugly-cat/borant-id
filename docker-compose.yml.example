@@ -35,3 +35,17 @@ networks:
   #   docker network create borant_provision
   borant_provision:
     external: true
+
+# ── Fissare la subnet della rete `default`, se l'app sta dietro un gate ───────
+# Il gateway della rete `default` di un progetto compose è l'indirizzo che l'app
+# vede come sorgente delle richieste proxate, ed è quello che le app borant
+# mettono in BORANT_TRUSTED_PROXY. Docker assegna quelle subnet in ordine di
+# creazione, quindi una risalita in ordine diverso cambia il gateway in silenzio
+# — e l'app rifiuta le identità del gate con un 503 che sembra un guasto
+# dell'autenticazione ed è un indirizzo IP. Fissarla chiude la domanda:
+#
+#   networks:
+#     default:
+#       ipam:
+#         config:
+#           - subnet: 10.200.101.0/24   # una /24 libera nel tuo pool Docker
