@@ -71,7 +71,7 @@ def _asset_version() -> str:
     dietro i propri asset senza purghe manuali dalla dashboard.
     """
     h = hashlib.sha256()
-    for name in ("style.css", "borant-logo.png"):
+    for name in ("style.css", "theme.js", "borant-logo.png"):
         try:
             st = os.stat(os.path.join(BASE, "static", name))
             h.update(f"{name}:{st.st_mtime_ns}:{st.st_size}".encode())

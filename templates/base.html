@@ -6,6 +6,18 @@
   <title>{% block title %}{{ site_name }}{% endblock %}</title>
   <link rel="icon" href="/static/borant-logo.png?v={{ asset_v }}">
   <link rel="stylesheet" href="/static/style.css?v={{ asset_v }}">
+  <script>
+    // Runs before the first paint, so a user who chose light never sees a dark
+    // frame. Kept inline and tiny on purpose: an external file would load too
+    // late. The toggle itself is in theme.js.
+    (function () {
+      try {
+        if (window.localStorage.getItem("borant-id-theme") === "light") {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      } catch (e) {}
+    })();
+  </script>
   {% block head %}{% endblock %}
 </head>
 <body>
@@ -14,6 +26,7 @@
     <img class="brand-logo" src="/static/borant-logo.png?v={{ asset_v }}" alt="Borant">
     <span>{{ site_name }}<span class="brand-sub">{{ t.tagline }}</span></span>
   </a>
+  <div class="topbar-end">
   {% if user %}
     <nav>
       <a href="/profile">{{ t.nav_profile }}</a>
@@ -29,6 +42,8 @@
       </form>
     </nav>
   {% endif %}
+    <button type="button" class="theme-toggle" aria-label="Switch theme" title="Switch theme" aria-pressed="false"><span class="theme-icon-dark" aria-hidden="true">&#9788;</span><span class="theme-icon-light" aria-hidden="true">&#9790;</span></button>
+  </div>
 </header>
 
 <main class="container{% block container_class %}{% endblock %}">
@@ -46,6 +61,7 @@
     </span>
   </div>
 </footer>
+<script src="/static/theme.js?v={{ asset_v }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
