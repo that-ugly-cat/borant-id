@@ -9,14 +9,24 @@ or an expired app password costs a copy-paste instead of a locked-out admin.
 Configured from /admin/config, not from the environment: the mailbox is not
 known at deploy time (SPEC.md §5).
 
-**Every message here is in English, and every message lives here.** The
-interface speaks four languages; the mail speaks one. The reason is that at the
-moment we write to somebody we usually do not know their language: an invitation
-goes out before that person has ever touched the interface, and it is the first
-thing they see of the system. English is the language this perimeter shares.
+**Every message here is in English, and every *default* message lives here.**
+The interface speaks four languages; the mail speaks one. The reason is that at
+the moment we write to somebody we usually do not know their language: an
+invitation goes out before that person has ever touched the interface, and it is
+the first thing they see of the system. English is the language this perimeter
+shares.
 
 Keeping the copy in one file is what makes "all mail is in English" a claim you
 can check by reading a single module instead of grepping three.
+
+The word *default* earns its place, and it was not there before the batch form
+grew a custom invitation text. **One message can be rewritten from outside this
+module** — the invitation, from the batch form in `/admin/users` — and what an
+administrator types is in whatever language that cohort reads. The claim that
+survives is narrower and still checkable by reading one file: every message the
+system composes *by itself* is here, in English, and the single exception is a
+text a human wrote on purpose for one batch. `INVITE_BODY` below is what keeps
+that exception from turning into a second copy of the invitation.
 """
 import smtplib
 import ssl
@@ -93,17 +103,64 @@ def send(db, to: str, subject: str, body: str) -> tuple[bool, str]:
 #
 # All of them in English. See the module docstring for why.
 
-def send_invite(db, to: str, name: str, link: str) -> tuple[bool, str]:
+# The invitation is the one message an administrator can rewrite, from the
+# batch form. Three decisions keep that from eroding the claim in the module
+# docstring:
+#
+#   - **The default is a template carrying the same placeholders a custom text
+#     gets** — `{nome}`, `{email}`, `{link}`, `{site}`, the vocabulary the
+#     broadcast message in /admin/config already uses. The box in the panel is
+#     pre-filled with *this very string*, so "custom" starts as a copy of what
+#     we would have sent anyway, and both texts then travel the same
+#     substitution. Were the default an f-string and the pre-fill a second
+#     literal in a template, the two would say different things within a year.
+#
+#   - **Substitution is `str.replace`, never `str.format`.** A stray brace in
+#     something a human typed — `{{nome}`, a smiley, a Jinja leftover — makes
+#     `format()` raise, and this module promises never to raise.
+#
+#   - **An unknown placeholder stays visible.** `{nmoe}` arrives in the mail as
+#     `{nmoe}`, which is ugly and gets noticed and fixed. Silently blanking it
+#     would send thirty people a greeting with a hole in it.
+#
+# One consequence worth naming: the greeting is now `Hello {nome},` with
+# `{nome}` falling back to the local part of the address, so an invitation for
+# an address with no name says "Hello luca," where it used to say "Hello,".
+# That is the price of having one text instead of two, and it reads better.
+INVITE_BODY = (
+    "Hello {nome},\n\n"
+    "An account has been created for you on {site}, the single sign-on "
+    "for the research tools at borant.eu.\n\n"
+    "To activate it, open this link:\n{link}\n\n"
+    "You will be able to set a password or link your ORCID.\n"
+    "The link expires in 14 days and can be used once.\n"
+)
+
+
+def render_invite(body: str, *, name: str, email: str, link: str,
+                  site: str) -> str:
+    """The invitation template with one person's details in it."""
+    who = (name or "").strip() or ((email or "").split("@")[0])
+    return (body.replace("{nome}", who)
+                .replace("{email}", email or "")
+                .replace("{link}", link or "")
+                .replace("{site}", site or ""))
+
+
+def send_invite(db, to: str, name: str, link: str,
+                body: str | None = None) -> tuple[bool, str]:
+    """`body` overrides `INVITE_BODY`; the subject stays ours either way.
+
+    The caller is responsible for having checked that a custom body contains
+    `{link}` — an invitation without one is a dead end that looks like it was
+    delivered. This function does not second-guess it, because by the time we
+    are here the batch is already running and refusing the thirtieth message
+    after sending twenty-nine is worse than either outcome.
+    """
     site = settings.get(db, "site_name")
-    body = (
-        f"Hello{(' ' + name) if name else ''},\n\n"
-        f"An account has been created for you on {site}, the single sign-on "
-        "for the research tools at borant.eu.\n\n"
-        f"To activate it, open this link:\n{link}\n\n"
-        "You will be able to set a password or link your ORCID.\n"
-        "The link expires in 14 days and can be used once.\n"
-    )
-    return send(db, to, f"Your {site} account", body)
+    text = render_invite(body or INVITE_BODY, name=name, email=to, link=link,
+                         site=site)
+    return send(db, to, f"Your {site} account", text)
 
 
 def send_confirm(db, to: str, link: str) -> tuple[bool, str]:

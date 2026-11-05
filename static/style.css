@@ -355,3 +355,23 @@ details.exp .exp-body { padding: 2px 20px 18px; }
 .sum-line { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 .sum-side { color: var(--muted-2); font-size: 13px; }
 .sum-side .mono { font-size: 12px; }
+
+/* Il primo e unico modale del pannello: l'editor del testo d'invito. Usa le
+   stesse variabili di tutto il resto, quindi segue il tema chiaro senza una
+   riga in piu. Il ::backdrop va dichiarato a parte: non eredita niente. */
+dialog.editor {
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px); overflow: auto;
+}
+dialog.editor::backdrop { background: rgba(0, 0, 0, .55); }
+dialog.editor h3 { margin-top: 0; }
+dialog.editor h4 { margin-bottom: 4px; }
+dialog.editor textarea { font-family: inherit; }
+.prev {
+  background: var(--chip-bg); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 14px; margin: 0;
+  white-space: pre-wrap; word-break: break-word; font-size: 13px;
+  color: var(--text);
+}

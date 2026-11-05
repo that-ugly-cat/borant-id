@@ -83,6 +83,12 @@ def users(request: Request, borant_session: str | None = Cookie(default=None),
     return _page(request, db, "admin_users.html", sess, me, rows=rows,
                  pending=[t for t in pending if t.is_live()], apps=apps,
                  requests=requests_pending,
+                 # Il testo di default arriva da `mailer` e non da un template:
+                 # la casella del modale si precompila con la stessa stringa che
+                 # partirebbe senza spuntare niente, quindi non esistono due
+                 # versioni dell'invito da tenere allineate.
+                 invite_default=mailer.INVITE_BODY,
+                 invite_sample_link=f"{settings.base_url(db)}/invite/EXAMPLE",
                  invite_link=request.query_params.get("link", ""),
                  mail_error_code=request.query_params.get("mailerr", ""),
                  pw_ok=request.query_params.get("pwok", ""),
@@ -759,7 +765,8 @@ def _parse_people(raw: str) -> list[tuple[str, str]]:
 
 @router.post("/users/batch", response_class=HTMLResponse)
 async def users_batch(request: Request, people: str = Form(""),
-                      mode: str = Form("invite"), csrf: str = Form(""),
+                      mode: str = Form("invite"), custom_invite: str = Form(""),
+                      invite_body: str = Form(""), csrf: str = Form(""),
                       borant_session: str | None = Cookie(default=None),
                       db: DbSession = Depends(get_db)):
     """Trenta studenti in un colpo solo, con i grant già assegnati.
@@ -769,6 +776,11 @@ async def users_batch(request: Request, people: str = Form(""),
     con una password generata, che compare **una volta sola** in una tabella da
     copiare — serve per l'aula dove la posta istituzionale non arriva o non si
     può aspettare.
+
+    `custom_invite` più `invite_body` sostituiscono il testo dell'invito per
+    questo batch e per nessun altro: non si salva da nessuna parte, perché il
+    testo giusto per un corso è sbagliato per il successivo e un default
+    nascosto in `settings` lo si scopre quando è già partito.
     """
     sess, me, redirect = _guard(db, borant_session)
     if redirect:
@@ -783,6 +795,35 @@ async def users_batch(request: Request, people: str = Form(""),
             app_id = key[len("app_"):]
             grants[app_id] = (form.get(f"hint_{app_id}") or "").strip()
 
+    # Il testo custom si controlla **prima** di toccare il database, e il
+    # controllo è uno: che contenga `{link}`. Un invito senza link è un vicolo
+    # cieco che sembra consegnato — la mail arriva, la persona non ha niente da
+    # cliccare, e lo scopri dalle risposte una settimana dopo, trenta volte.
+    # La pagina controlla la stessa cosa in JS prima di spedire il form, ma quel
+    # controllo è una comodità per non perdere l'elenco incollato: chi arriva
+    # con lo script spento merita lo stesso rifiuto, perché qui le mail partono
+    # e non si richiamano.
+    #
+    # In modo `create` non parte nessuna mail, quindi un testo custom lì non
+    # vuol dire niente: si ignora, e si dice nel log che è stato ignorato — una
+    # casella spuntata che non ha fatto niente è il genere di cosa che poi costa
+    # mezz'ora a qualcuno.
+    custom = (invite_body or "").strip() if custom_invite else ""
+    ignored = bool(custom) and mode != "invite"
+    problem = ""
+    if custom and mode == "invite" and "{link}" not in custom:
+        problem = "nolink"
+    elif custom_invite and not custom and mode == "invite":
+        problem = "empty"
+    if problem:
+        audit(db, "users.batch_refused", user=me, ip=_ip(request),
+              reason=problem, mode=mode)
+        return _page(request, db, "admin_batch.html", sess, me, rows=[],
+                     mode=mode, pushed=None, problem=problem,
+                     typed=invite_body or "", typed_people=people)
+    if ignored:
+        custom = ""
+
     # Tutto il ciclo esce dall'event loop, e non è un dettaglio di stile. Cento
     # persone in modo `create` sono cento bcrypt, in modo `invite` cento
     # connessioni SMTP aperte una per messaggio: sincroni qui dentro, sono uno
@@ -795,14 +836,21 @@ async def users_batch(request: Request, people: str = Form(""),
     def _work() -> list[dict]:
         rows = []
         for email, name in _parse_people(people):
-            rows.append(_batch_person(db, me, email, name, grants, mode, touched))
+            rows.append(_batch_person(db, me, email, name, grants, mode,
+                                      touched, custom))
         return rows
 
     rows = await run_in_threadpool(_work)
 
     auth.invalidate_registry()
+    # Il testo non finisce nel log, solo il fatto che ce n'era uno e quanto era
+    # lungo: stessa scelta di `message.sent`, dove il corpo può essere lungo e
+    # può contenere di tutto. Per ricostruire serve sapere che quel batch non ha
+    # usato il testo di default, non rileggere la lettera.
     audit(db, "users.batch", user=me, ip=_ip(request), mode=mode,
-          count=len(rows), apps=list(grants))
+          count=len(rows), apps=list(grants),
+          custom_body=bool(custom), custom_len=len(custom),
+          custom_ignored=ignored)
 
     # Il push è inline e non in background: qui l'amministratore sta guardando,
     # e i numeri sono la differenza fra un flusso di cui ci si fida e uno di
@@ -815,14 +863,19 @@ async def users_batch(request: Request, people: str = Form(""),
               **push.audit_detail(pushed))
 
     return _page(request, db, "admin_batch.html", sess, me, rows=rows,
-                 mode=mode, pushed=pushed)
+                 mode=mode, pushed=pushed, problem="", typed="",
+                 typed_people="", custom_used=bool(custom))
 
 
 def _batch_person(db, me, email: str, name: str, grants: dict, mode: str,
-                  touched: list[int]) -> dict:
+                  touched: list[int], custom: str = "") -> dict:
     """Una riga dell'elenco incollato. Estratta dal ciclo perché quel ciclo
     gira in un thread, e perché così `touched` — chi va annunciato alle app —
-    si riempie in un posto solo."""
+    si riempie in un posto solo.
+
+    `custom`, quando c'è, è il corpo dell'invito per questa persona: i
+    segnaposto li risolve `mailer.render_invite`, uno per destinatario, perché
+    `{nome}` e `{email}` cambiano a ogni riga."""
     existing = db.query(User).filter(User.email == email).first()
     if existing is not None:
         # Non si tocca chi c'è già: si aggiungono solo i grant mancanti,
@@ -865,7 +918,7 @@ def _batch_person(db, me, email: str, name: str, grants: dict, mode: str,
                  created_by=me.display))
     db.commit()
     link = f"{settings.base_url(db)}/invite/{plain}"
-    ok, err = mailer.send_invite(db, email, name, link)
+    ok, err = mailer.send_invite(db, email, name, link, body=custom or None)
     # Niente `touched`: nel modo `invite` l'account non esiste ancora — c'è solo
     # un token — quindi non c'è nessun subject da annunciare. Quelle persone
     # vengono spinte quando accettano l'invito, non adesso.

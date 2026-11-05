@@ -183,6 +183,44 @@
       <input type="radio" name="mode" value="create">
       {{ t.adm_users_mode_create }}
     </label>
+
+    {# Il modale sta DENTRO questo form di proposito: la textarea viaggia con la
+       submit del batch, senza una seconda rotta e senza un secondo CSRF. Tutti
+       i bottoni qui dentro sono `type="button"`, perché dentro un form il
+       default è submit e un «chiudi» che spedisce trenta inviti sarebbe
+       l'incidente più stupido possibile. #}
+    <h3>{{ t.adm_users_h_invitemail }}</h3>
+    <label class="check plain">
+      <input type="checkbox" id="custom-invite" name="custom_invite" value="1">
+      {{ t.adm_users_custom_l }}
+    </label>
+    <p class="note" id="custom-hint">{{ t.adm_users_custom_hint }}</p>
+    <div class="actions" id="custom-actions" hidden>
+      <button type="button" class="btn" id="custom-open">{{ t.adm_users_custom_edit }}</button>
+      <span class="muted small" id="custom-state"
+            data-edited="{{ t.adm_users_custom_edited }}"></span>
+    </div>
+
+    <dialog id="custom-dialog" class="editor" aria-labelledby="custom-dialog-h">
+      <h3 id="custom-dialog-h">{{ t.adm_users_custom_h }}</h3>
+      <p class="note">{{ t.adm_users_custom_note | safe }}</p>
+      <label for="invite_body">{{ t.adm_cfg_body }}</label>
+      {# Il default non si ripete in un attributo: lo cattura il JS al
+         caricamento, dove è già, e «ripristina» rimette quella stringa. #}
+      <textarea id="invite_body" name="invite_body" rows="12">{{ invite_default }}</textarea>
+      <div class="flash flash-error" id="custom-nolink" hidden>
+        {{ t.adm_users_custom_nolink | safe }}
+      </div>
+      <h4>{{ t.adm_users_custom_prev }}</h4>
+      <p class="note small">{{ t.adm_users_custom_prev_note }}</p>
+      <pre class="prev mono" id="custom-preview"
+           data-site="{{ site_name }}" data-link="{{ invite_sample_link }}"></pre>
+      <div class="actions">
+        <button type="button" class="btn-primary" id="custom-done">{{ t.adm_users_custom_done }}</button>
+        <button type="button" class="btn" id="custom-reset">{{ t.adm_users_custom_reset }}</button>
+      </div>
+    </dialog>
+
     <div class="actions"><button class="btn-primary" type="submit">{{ t.adm_users_batch_btn }}</button></div>
   </form>
 </div>
@@ -348,6 +386,110 @@
   }
   window.addEventListener('hashchange', apriBersaglio);
   apriBersaglio();
+})();
+
+// Il testo dell'invito. Tre cose che questo script deve fare e che non sono
+// decorazione:
+//
+//   1. **Non perdere l'elenco incollato.** Il server rifiuta un testo senza
+//      `{link}`, ed è giusto, ma un rifiuto dal server costa trenta righe
+//      reincollate. Qui il controllo si fa prima della submit, riapre il
+//      modale e lascia il form dov'è.
+//   2. **Risolvere i segnaposto sulla prima persona dell'elenco**, non su un
+//      esempio inventato: un'anteprima che mostra `{nome}` non dice niente, e
+//      un'anteprima con un nome finto non dice se quella riga è stata
+//      incollata male.
+//   3. **Dire che in modo `create` non parte nessuna mail.** La casella lì
+//      sopra non vuol dire niente, e una casella che non fa niente va spenta a
+//      voce, non lasciata spuntabile.
+(function () {
+  var box = document.getElementById('custom-invite');
+  var dlg = document.getElementById('custom-dialog');
+  if (!box || !dlg || typeof dlg.showModal !== 'function') return;
+
+  var body = document.getElementById('invite_body');
+  var prev = document.getElementById('custom-preview');
+  var nolink = document.getElementById('custom-nolink');
+  var actions = document.getElementById('custom-actions');
+  var state = document.getElementById('custom-state');
+  var hint = document.getElementById('custom-hint');
+  var people = document.getElementById('people');
+  var form = box.form;
+  var DEFAULT = body.value;          // la stringa che il server ha reso
+  var SITE = prev.getAttribute('data-site') || '';
+  var LINK = prev.getAttribute('data-link') || '';
+
+  function primaPersona() {
+    var raw = (people && people.value || '').split('\n');
+    for (var i = 0; i < raw.length; i++) {
+      var line = raw[i].replace(/[;\t]/g, ',').trim();
+      if (!line) continue;
+      var parts = line.split(',');
+      var email = (parts[0] || '').trim();
+      if (email.indexOf('@') < 0) continue;
+      return { email: email, name: (parts[1] || '').trim() };
+    }
+    return null;
+  }
+
+  function rendi() {
+    var p = primaPersona();
+    var email = p ? p.email : 'anna.rossi@uzh.ch';
+    var nome = (p && p.name) || email.split('@')[0];
+    prev.textContent = body.value
+      .split('{nome}').join(nome)
+      .split('{email}').join(email)
+      .split('{link}').join(LINK)
+      .split('{site}').join(SITE);
+    var manca = body.value.indexOf('{link}') < 0;
+    nolink.hidden = !manca;
+    return !manca;
+  }
+
+  function aggiorna() {
+    var creating = (form.querySelector('input[name="mode"]:checked') || {}).value === 'create';
+    box.disabled = creating;
+    if (creating) box.checked = false;
+    hint.hidden = creating;
+    actions.hidden = !box.checked;
+    if (state) {
+      state.textContent = box.checked && body.value !== DEFAULT
+        ? state.getAttribute('data-edited') || '' : '';
+    }
+  }
+
+  box.addEventListener('change', function () {
+    aggiorna();
+    if (box.checked) { rendi(); dlg.showModal(); }
+  });
+  Array.prototype.forEach.call(
+    form.querySelectorAll('input[name="mode"]'),
+    function (r) { r.addEventListener('change', aggiorna); });
+
+  document.getElementById('custom-open')
+    .addEventListener('click', function () { rendi(); dlg.showModal(); });
+  document.getElementById('custom-done')
+    .addEventListener('click', function () {
+      if (rendi()) { dlg.close(); aggiorna(); }
+    });
+  document.getElementById('custom-reset')
+    .addEventListener('click', function () { body.value = DEFAULT; rendi(); });
+  body.addEventListener('input', rendi);
+  if (people) people.addEventListener('input', function () {
+    if (dlg.open) rendi();
+  });
+
+  form.addEventListener('submit', function (e) {
+    if (!box.checked || box.disabled) return;
+    if (!body.value.trim() || body.value.indexOf('{link}') < 0) {
+      e.preventDefault();
+      rendi();
+      if (!dlg.open) dlg.showModal();
+      body.focus();
+    }
+  });
+
+  aggiorna();
 })();
 </script>
 {% endblock %}

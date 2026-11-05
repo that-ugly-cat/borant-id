@@ -320,6 +320,20 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "adm_batch_r_created": "account creato",
         "adm_batch_r_invited": "invito inviato",
         "adm_batch_r_mail_failed": "mail non partita",
+        "adm_batch_stop_b": "Non è partito niente.",
+        "adm_batch_stop_nolink": "Il testo dell'invito non contiene il "
+                                 "segnaposto {link}, quindi quelle mail "
+                                 "sarebbero arrivate senza niente da "
+                                 "cliccare. Nessun account creato, nessun "
+                                 "invito spedito: correggi il testo e "
+                                 "rilancia.",
+        "adm_batch_stop_empty": "Hai chiesto un testo tuo per l'invito e la "
+                                "casella era vuota. Nessun account creato, "
+                                "nessun invito spedito.",
+        "adm_batch_stop_typed": "Il testo che avevi scritto",
+        "adm_batch_stop_people": "L'elenco che avevi incollato",
+        "adm_batch_custom_used": "Questi inviti sono partiti col testo che hai "
+                                 "scritto tu, non con quello di default.",
         "adm_del_title": "Cancella %(who)s",
         "adm_del_h": "Cancellare %(who)s?",
         "adm_del_cannot": "Non si può.",
@@ -609,6 +623,29 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "adm_users_mode_create": "crea subito con password generate: compaiono "
                                  "una volta sola, da copiare",
         "adm_users_batch_btn": "Elabora",
+        "adm_users_h_invitemail": "La mail d'invito",
+        "adm_users_custom_l": "Scrivi un testo tuo invece di quello di default",
+        "adm_users_custom_hint": "Senza spuntare niente parte il testo di "
+                                 "default, in inglese, lo stesso di sempre.",
+        "adm_users_custom_edit": "Apri l'editor",
+        "adm_users_custom_edited": "testo modificato",
+        "adm_users_custom_h": "Testo dell'invito",
+        "adm_users_custom_note": "Vale per questo batch e per nessun altro: "
+                                 "non viene salvato. <code>{nome}</code>, "
+                                 "<code>{email}</code>, <code>{link}</code> e "
+                                 "<code>{site}</code> vengono sostituiti per "
+                                 "ogni destinatario. <code>{link}</code> è "
+                                 "obbligatorio: senza, la mail arriva e non "
+                                 "c'è niente da cliccare. L'oggetto resta "
+                                 "quello di sempre.",
+        "adm_users_custom_nolink": "Manca <code>{link}</code>: con questo "
+                                   "testo l'invito non si può accettare.",
+        "adm_users_custom_prev": "Anteprima",
+        "adm_users_custom_prev_note": "Risolta sulla prima persona "
+                                      "dell'elenco qui sopra; il link è un "
+                                      "esempio.",
+        "adm_users_custom_done": "Usa questo testo",
+        "adm_users_custom_reset": "Torna al default",
         "adm_users_h_pending": "Inviti in attesa",
         "adm_users_deleted": "Utente cancellato. Ricorda che <strong>le app non "
                              "sono state toccate</strong>: il profilo locale è "
@@ -907,6 +944,19 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "adm_batch_r_created": "account created",
         "adm_batch_r_invited": "invitation sent",
         "adm_batch_r_mail_failed": "email did not go out",
+        "adm_batch_stop_b": "Nothing went out.",
+        "adm_batch_stop_nolink": "The invitation text has no {link} "
+                                 "placeholder, so those messages would have "
+                                 "arrived with nothing to click. No account "
+                                 "created, no invitation sent: fix the text "
+                                 "and run it again.",
+        "adm_batch_stop_empty": "You asked for your own invitation text and "
+                                "the box was empty. No account created, no "
+                                "invitation sent.",
+        "adm_batch_stop_typed": "The text you had written",
+        "adm_batch_stop_people": "The list you had pasted",
+        "adm_batch_custom_used": "These invitations went out with your own "
+                                 "text, not with the default one.",
         "adm_del_title": "Delete %(who)s",
         "adm_del_h": "Delete %(who)s?",
         "adm_del_cannot": "Not possible.",
@@ -1190,6 +1240,28 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "adm_users_mode_create": "create right away with generated passwords: "
                                  "they appear once, to be copied",
         "adm_users_batch_btn": "Process",
+        "adm_users_h_invitemail": "The invitation email",
+        "adm_users_custom_l": "Write your own text instead of the default one",
+        "adm_users_custom_hint": "Leave it alone and the default English text "
+                                 "goes out, the same as always.",
+        "adm_users_custom_edit": "Open the editor",
+        "adm_users_custom_edited": "text edited",
+        "adm_users_custom_h": "Invitation text",
+        "adm_users_custom_note": "It applies to this batch and to no other: "
+                                 "nothing is saved. <code>{nome}</code>, "
+                                 "<code>{email}</code>, <code>{link}</code> "
+                                 "and <code>{site}</code> are replaced for "
+                                 "each recipient. <code>{link}</code> is "
+                                 "required: without it the message arrives "
+                                 "with nothing to click. The subject stays "
+                                 "ours.",
+        "adm_users_custom_nolink": "<code>{link}</code> is missing: with this "
+                                   "text the invitation cannot be accepted.",
+        "adm_users_custom_prev": "Preview",
+        "adm_users_custom_prev_note": "Resolved on the first person in the "
+                                      "list above; the link is an example.",
+        "adm_users_custom_done": "Use this text",
+        "adm_users_custom_reset": "Back to the default",
         "adm_users_h_pending": "Pending invitations",
         "adm_users_deleted": "User deleted. Remember that <strong>the tools were"
                              " not touched</strong>: the local profile is still "
@@ -1500,6 +1572,20 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "adm_batch_r_created": "Konto angelegt",
         "adm_batch_r_invited": "Einladung gesendet",
         "adm_batch_r_mail_failed": "E-Mail nicht rausgegangen",
+        "adm_batch_stop_b": "Es ist nichts rausgegangen.",
+        "adm_batch_stop_nolink": "Im Einladungstext fehlt der Platzhalter "
+                                 "{link}, die Nachrichten wären also ohne "
+                                 "klickbaren Link angekommen. Kein Konto "
+                                 "angelegt, keine Einladung gesendet: Text "
+                                 "korrigieren und erneut starten.",
+        "adm_batch_stop_empty": "Sie haben einen eigenen Einladungstext "
+                                "verlangt, das Feld war aber leer. Kein Konto "
+                                "angelegt, keine Einladung gesendet.",
+        "adm_batch_stop_typed": "Der Text, den Sie geschrieben hatten",
+        "adm_batch_stop_people": "Die Liste, die Sie eingefügt hatten",
+        "adm_batch_custom_used": "Diese Einladungen sind mit Ihrem eigenen "
+                                 "Text rausgegangen, nicht mit dem "
+                                 "Standardtext.",
         "adm_del_title": "%(who)s löschen",
         "adm_del_h": "%(who)s löschen?",
         "adm_del_cannot": "Geht nicht.",
@@ -1804,6 +1890,30 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "adm_users_mode_create": "sofort mit erzeugten Passwörtern anlegen: sie "
                                  "erscheinen ein einziges Mal, zum Kopieren",
         "adm_users_batch_btn": "Verarbeiten",
+        "adm_users_h_invitemail": "Die Einladungs-E-Mail",
+        "adm_users_custom_l": "Eigenen Text statt des Standardtexts schreiben",
+        "adm_users_custom_hint": "Ohne Haken geht der englische Standardtext "
+                                 "raus, wie immer.",
+        "adm_users_custom_edit": "Editor öffnen",
+        "adm_users_custom_edited": "Text geändert",
+        "adm_users_custom_h": "Einladungstext",
+        "adm_users_custom_note": "Gilt für diesen Stapel und für keinen "
+                                 "anderen: nichts wird gespeichert. "
+                                 "<code>{nome}</code>, <code>{email}</code>, "
+                                 "<code>{link}</code> und <code>{site}</code> "
+                                 "werden pro Empfänger ersetzt. "
+                                 "<code>{link}</code> ist Pflicht: ohne ihn "
+                                 "kommt die Nachricht ohne klickbaren Link "
+                                 "an. Der Betreff bleibt unser.",
+        "adm_users_custom_nolink": "<code>{link}</code> fehlt: mit diesem "
+                                   "Text kann die Einladung nicht "
+                                   "angenommen werden.",
+        "adm_users_custom_prev": "Vorschau",
+        "adm_users_custom_prev_note": "Aufgelöst mit der ersten Person aus "
+                                      "der Liste oben; der Link ist ein "
+                                      "Beispiel.",
+        "adm_users_custom_done": "Diesen Text verwenden",
+        "adm_users_custom_reset": "Zurück zum Standard",
         "adm_users_h_pending": "Ausstehende Einladungen",
         "adm_users_deleted": "Benutzer gelöscht. Denken Sie daran, dass "
                              "<strong>die Werkzeuge nicht angerührt "
@@ -2118,6 +2228,19 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "adm_batch_r_created": "compte créé",
         "adm_batch_r_invited": "invitation envoyée",
         "adm_batch_r_mail_failed": "e-mail non parti",
+        "adm_batch_stop_b": "Rien n'est parti.",
+        "adm_batch_stop_nolink": "Le texte de l'invitation ne contient pas le "
+                                 "marqueur {link} : ces messages seraient "
+                                 "arrivés sans rien à cliquer. Aucun compte "
+                                 "créé, aucune invitation envoyée : corrigez "
+                                 "le texte et relancez.",
+        "adm_batch_stop_empty": "Vous avez demandé votre propre texte "
+                                "d'invitation et le champ était vide. Aucun "
+                                "compte créé, aucune invitation envoyée.",
+        "adm_batch_stop_typed": "Le texte que vous aviez écrit",
+        "adm_batch_stop_people": "La liste que vous aviez collée",
+        "adm_batch_custom_used": "Ces invitations sont parties avec votre "
+                                 "propre texte, pas avec celui par défaut.",
         "adm_del_title": "Supprimer %(who)s",
         "adm_del_h": "Supprimer %(who)s ?",
         "adm_del_cannot": "Impossible.",
@@ -2419,6 +2542,31 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
                                  "générés : ils apparaissent une seule fois, à "
                                  "copier",
         "adm_users_batch_btn": "Traiter",
+        "adm_users_h_invitemail": "L'e-mail d'invitation",
+        "adm_users_custom_l": "Écrire votre propre texte au lieu du texte par "
+                              "défaut",
+        "adm_users_custom_hint": "Sans rien cocher, le texte par défaut en "
+                                 "anglais part comme toujours.",
+        "adm_users_custom_edit": "Ouvrir l'éditeur",
+        "adm_users_custom_edited": "texte modifié",
+        "adm_users_custom_h": "Texte de l'invitation",
+        "adm_users_custom_note": "Valable pour ce lot et pour aucun autre : "
+                                 "rien n'est enregistré. <code>{nome}</code>, "
+                                 "<code>{email}</code>, <code>{link}</code> "
+                                 "et <code>{site}</code> sont remplacés pour "
+                                 "chaque destinataire. <code>{link}</code> "
+                                 "est obligatoire : sans lui, le message "
+                                 "arrive sans rien à cliquer. L'objet reste "
+                                 "le nôtre.",
+        "adm_users_custom_nolink": "<code>{link}</code> manque : avec ce "
+                                   "texte, l'invitation ne peut pas être "
+                                   "acceptée.",
+        "adm_users_custom_prev": "Aperçu",
+        "adm_users_custom_prev_note": "Résolu sur la première personne de la "
+                                      "liste ci-dessus ; le lien est un "
+                                      "exemple.",
+        "adm_users_custom_done": "Utiliser ce texte",
+        "adm_users_custom_reset": "Revenir au texte par défaut",
         "adm_users_h_pending": "Invitations en attente",
         "adm_users_deleted": "Utilisateur supprimé. Rappelez-vous que "
                              "<strong>les outils n'ont pas été touchés</strong> "
