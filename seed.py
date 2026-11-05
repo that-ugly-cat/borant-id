@@ -184,7 +184,18 @@ def seed_apps(db, refresh_descriptions: bool = False) -> int:
                     description=description)
             db.add(a)
             db.commit()
-            db.add(Policy(app_id=a.id, path_prefix="/", note="default"))
+            # Il default su `/` non si aggiunge quando `/` è già fra i
+            # `two_factor` di questa app: sarebbe la stessa riga due volte, e
+            # `policies` ha un UNIQUE su (app_id, path_prefix). Il controllo nel
+            # ciclo qui sotto non basta a evitarlo, perché la sessione ha
+            # `autoflush=False` e quindi non vede la riga appena aggiunta e non
+            # ancora scritta: su un database **vuoto** seed.py moriva al quarto
+            # giro — autocode, che ha `two_factor = ["/"]` — con un
+            # IntegrityError, e dopo di lui non registrava più niente. In
+            # produzione non si è mai visto perché quelle righe c'erano già
+            # prima che questa lista imparasse i two_factor.
+            if "/" not in two_factor:
+                db.add(Policy(app_id=a.id, path_prefix="/", note="default"))
             made += 1
         else:
             if roles and not a.roles:
